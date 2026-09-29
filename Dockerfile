@@ -10,7 +10,7 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q package -DskipTests
 
 # ---- runtime stage: JRE only, non-root ----
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 RUN addgroup -S ledger && adduser -S ledger -G ledger
 WORKDIR /app
 COPY --from=build /workspace/target/ledger-service-*.jar app.jar
