@@ -81,7 +81,7 @@ export default function StatementPanel({ auth, isAdmin, accounts, accountId, onA
           <p>
             Opening <strong>{formatMinor(statement.openingBalance)}</strong> · Closing{' '}
             <strong>{formatMinor(statement.closingBalance)}</strong> {statement.currency} ·{' '}
-            {statement.totalElements} entries
+            {statement.totalElements} {statement.totalElements === 1 ? 'entry' : 'entries'}
           </p>
           <table>
             <thead>

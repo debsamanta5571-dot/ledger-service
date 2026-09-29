@@ -8,6 +8,11 @@ A double-entry ledger service built with **Java 21, Spring Boot 3 and PostgreSQL
 transactions, idempotent transfers and account statements. Money moves only by appending balanced entries to an
 immutable journal, and every balance is derived from that journal.
 
+![Demo: a user signs in, opens two accounts, moves money, is refused an overdraft, and views statements](docs/demo.gif)
+
+*A user signs in through the [identity service](https://github.com/debsamanta5571-dot/identity-service), opens two
+accounts, moves money, is refused a transfer that would overdraw, and views the statements with a running balance.*
+
 The project focuses on the parts of ledger engineering that are easy to get wrong: keeping balances correct under
 concurrency, making retried requests take effect exactly once, controlling who may touch which account, and a
 database schema that enforces its own rules.
@@ -112,10 +117,11 @@ cd ui && npm install && npm run dev                            # web page at htt
 
 ### Signing in with the identity service
 
-The web page's **Sign in** button uses the companion [identity service](../identity-service) (OAuth 2.0
+The web page's **Sign in** button uses the companion [identity service](https://github.com/debsamanta5571-dot/identity-service) (OAuth 2.0
 authorization code flow with PKCE). Run it next to the ledger:
 
 ```bash
+git clone https://github.com/debsamanta5571-dot/identity-service ../identity-service
 cd ../identity-service && ./scripts/dev-secrets.sh    # once: generates .env, including the local admin login
 docker compose up -d identity-api                     # http://localhost:5001
 ```
@@ -188,7 +194,7 @@ Errors are returned as `application/problem+json`, for example:
   "type": "urn:ledger:problem:insufficient-funds",
   "title": "Insufficient funds",
   "status": 422,
-  "detail": "Insufficient funds: 7500 available (including overdraft), 999999 requested",
+  "detail": "7500 available (including overdraft), 999999 requested",
   "instance": "/transfers",
   "available": 7500
 }

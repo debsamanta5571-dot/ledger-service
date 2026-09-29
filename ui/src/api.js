@@ -1,3 +1,5 @@
+import { describeProblem } from './errors.js';
+
 // Thin fetch wrapper. Errors from the service are RFC 7807 problem+json; they are surfaced as ApiError.
 
 const BASE = import.meta.env.VITE_API_BASE ?? '/api';
@@ -87,8 +89,8 @@ export function identityClient(identityUrl, auth) {
   };
 }
 
+/** One readable sentence for any failure (see errors.js for how API problems are worded). */
 export function describeError(e) {
   if (!(e instanceof ApiError)) return e.message || 'Network error';
-  const fieldErrors = e.problem?.errors?.map((f) => `${f.field}: ${f.message}`).join('; ');
-  return fieldErrors ? `${e.problem.title}: ${fieldErrors}` : `${e.problem?.title ?? 'Error'}: ${e.message}`;
+  return describeProblem(e.status, e.problem, e.message);
 }
