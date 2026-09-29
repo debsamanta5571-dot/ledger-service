@@ -51,9 +51,10 @@ public class StatementRepository {
     public List<Line> page(UUID accountId, OffsetDateTime from, OffsetDateTime to, int sign, long openingNormal,
                            int size, long offset) {
         return jdbc.sql("""
-                SELECT id, transaction_id, direction, amount, description, created_at, balance_after
+                SELECT id, transaction_id, direction, amount, description, initiated_by, created_at, balance_after
                 FROM (
-                    SELECT e.id, e.transaction_id, e.direction, e.amount, t.description, e.created_at,
+                    SELECT e.id, e.transaction_id, e.direction, e.amount, t.description,
+                           t.created_by_name AS initiated_by, e.created_at,
                            CAST(:opening + SUM(CASE e.direction WHEN 'DEBIT' THEN e.amount * :sign
                                                                 ELSE -e.amount * :sign END)
                                 OVER (ORDER BY e.created_at, e.id) AS BIGINT) AS balance_after
@@ -78,6 +79,7 @@ public class StatementRepository {
                         rs.getLong("amount"),
                         rs.getLong("balance_after"),
                         rs.getString("description"),
+                        rs.getString("initiated_by"),
                         rs.getTimestamp("created_at").toInstant()))
                 .list();
     }

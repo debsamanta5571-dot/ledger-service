@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, describeError } from './api.js';
 import { formatMinor, parseMajor } from './money.js';
 
-export default function AccountsPanel({ auth, accounts, onChanged, onViewStatement }) {
+export default function AccountsPanel({ auth, isAdmin, me, accounts, onChanged, onViewStatement }) {
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [type, setType] = useState('ASSET');
@@ -89,6 +89,7 @@ export default function AccountsPanel({ auth, accounts, onChanged, onViewStateme
         <thead>
           <tr>
             <th>Name</th>
+            {isAdmin && <th>Owner</th>}
             <th>Type</th>
             <th>Currency</th>
             <th className="num">Overdraft</th>
@@ -104,6 +105,7 @@ export default function AccountsPanel({ auth, accounts, onChanged, onViewStateme
                 {a.name}
                 {a.closedAt && <span className="badge">closed</span>}
               </td>
+              {isAdmin && <td>{a.ownerId === me ? 'You' : (a.ownerName ?? a.ownerId)}</td>}
               <td>{a.type}</td>
               <td>{a.currency}</td>
               <td className="num">{formatMinor(a.overdraftLimit)}</td>
@@ -122,7 +124,7 @@ export default function AccountsPanel({ auth, accounts, onChanged, onViewStateme
           ))}
           {accounts.length === 0 && (
             <tr>
-              <td colSpan="7">No accounts yet.</td>
+              <td colSpan={isAdmin ? 8 : 7}>No accounts yet.</td>
             </tr>
           )}
         </tbody>

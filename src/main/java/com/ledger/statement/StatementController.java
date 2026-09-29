@@ -32,6 +32,6 @@ public class StatementController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return service.statement(Caller.id(caller), id, from, to, page, size);
+        return service.statement(Caller.of(caller), id, from, to, page, size);
     }
 }

@@ -46,7 +46,7 @@ public class TransferController {
             throw new InvalidRequestException(
                     "Idempotency-Key must be between 1 and " + MAX_KEY_LENGTH + " characters");
         }
-        TransferResult result = service.transfer(Caller.id(caller), idempotencyKey, request);
+        TransferResult result = service.transfer(Caller.of(caller), idempotencyKey, request);
 
         ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatusCode.valueOf(result.status()))
                 .location(URI.create("/accounts/" + result.body().fromAccountId() + "/statement"));

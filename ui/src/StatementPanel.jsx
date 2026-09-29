@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from './api.js';
 import { formatMinor } from './money.js';
+import { accountLabel } from './labels.js';
 
 const PAGE_SIZE = 10;
 
-export default function StatementPanel({ auth, accounts, accountId, onAccountChange }) {
+export default function StatementPanel({ auth, isAdmin, accounts, accountId, onAccountChange }) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(0);
@@ -62,7 +63,7 @@ export default function StatementPanel({ auth, accounts, accountId, onAccountCha
           <option value="">Account…</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
-              {a.name} ({a.currency})
+              {accountLabel(a, { showOwner: isAdmin })}
             </option>
           ))}
         </select>
@@ -88,6 +89,7 @@ export default function StatementPanel({ auth, accounts, accountId, onAccountCha
                 <th>When (UTC)</th>
                 <th>Description</th>
                 <th>Side</th>
+                <th>By</th>
                 <th className="num">Amount</th>
                 <th className="num">Balance after</th>
               </tr>
@@ -98,13 +100,14 @@ export default function StatementPanel({ auth, accounts, accountId, onAccountCha
                   <td>{e.createdAt.replace('T', ' ').slice(0, 19)}</td>
                   <td>{e.description ?? ''}</td>
                   <td>{e.direction}</td>
+                  <td>{e.initiatedBy ?? ''}</td>
                   <td className="num">{formatMinor(e.amount)}</td>
                   <td className={`num ${e.balanceAfter < 0 ? 'neg' : ''}`}>{formatMinor(e.balanceAfter)}</td>
                 </tr>
               ))}
               {statement.entries.length === 0 && (
                 <tr>
-                  <td colSpan="5">No entries in this range.</td>
+                  <td colSpan="6">No entries in this range.</td>
                 </tr>
               )}
             </tbody>

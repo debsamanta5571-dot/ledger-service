@@ -38,6 +38,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [rejected, setRejected] = useState(false);
   const [statementAccountId, setStatementAccountId] = useState('');
+  const [onlyMine, setOnlyMine] = useState(false); // admins: narrow the list to their own accounts
 
   // Start-up: load the sign-in settings, then either finish a sign-in (we are the redirect target) or resume one.
   useEffect(() => {
@@ -93,7 +94,7 @@ export default function App() {
       return;
     }
     try {
-      const { data } = await api(auth, '/accounts?limit=100&includeClosed=true');
+      const { data } = await api(auth, `/accounts?limit=100&includeClosed=true${onlyMine ? '&mine=true' : ''}`);
       if (latestAuth.current !== auth) return; // who-you-are changed while this was in flight
       setAccounts(data);
       setError(null);
@@ -113,7 +114,7 @@ export default function App() {
       }
       setError(describeError(e));
     }
-  }, [auth, session]);
+  }, [auth, session, onlyMine]);
 
   useEffect(() => {
     refresh();
@@ -154,6 +155,9 @@ export default function App() {
   }
 
   const panels = auth && !rejected;
+  // Admins (ledger:admin, granted only to the identity service's admin role) see and act on every account. The
+  // server enforces this; the page only adapts its display.
+  const isAdmin = !!user?.scopes.includes('ledger:admin');
 
   return (
     <main>
@@ -162,6 +166,7 @@ export default function App() {
         {user && (
           <div className="who">
             Signed in as <strong>{user.name}</strong>
+            {isAdmin && <span className="badge admin">Admin</span>}
             <button type="button" onClick={signOut}>
               Sign out
             </button>
@@ -213,10 +218,21 @@ export default function App() {
       )}
       {error && <p className="error">{error}</p>}
 
+      {panels && isAdmin && (
+        <div className="row admin-bar">
+          <span>You are an admin: you can see and manage every customer's accounts.</span>
+          <label>
+            <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /> Only mine
+          </label>
+        </div>
+      )}
+
       {panels ? (
         <>
           <AccountsPanel
             auth={auth}
+            isAdmin={isAdmin}
+            me={user?.sub ? `user:${user.sub}` : null}
             accounts={accounts}
             onChanged={refresh}
             onViewStatement={(id) => {
@@ -224,9 +240,10 @@ export default function App() {
               document.getElementById('statement')?.scrollIntoView({ behavior: 'smooth' });
             }}
           />
-          <TransferPanel auth={auth} accounts={accounts} onChanged={refresh} />
+          <TransferPanel auth={auth} accounts={accounts} onChanged={refresh} isAdmin={isAdmin} />
           <StatementPanel
             auth={auth}
+            isAdmin={isAdmin}
             accounts={accounts}
             accountId={statementAccountId}
             onAccountChange={setStatementAccountId}

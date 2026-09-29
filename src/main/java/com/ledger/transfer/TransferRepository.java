@@ -1,5 +1,6 @@
 package com.ledger.transfer;
 
+import com.ledger.api.Caller;
 import com.ledger.ledger.EntryDraft;
 import java.time.Instant;
 import java.util.List;
@@ -16,11 +17,17 @@ public class TransferRepository {
         this.jdbc = jdbc;
     }
 
-    /** Inserts the transaction header and returns its creation time. */
-    public Instant insertTransaction(UUID id, String description) {
-        return jdbc.sql("INSERT INTO transactions (id, description) VALUES (:id, :description) RETURNING created_at")
+    /** Inserts the transaction header, recording who initiated it, and returns its creation time. */
+    public Instant insertTransaction(UUID id, String description, Caller initiator) {
+        return jdbc.sql("""
+                INSERT INTO transactions (id, description, created_by, created_by_name)
+                VALUES (:id, :description, :createdBy, :createdByName)
+                RETURNING created_at
+                """)
                 .param("id", id)
                 .param("description", description)
+                .param("createdBy", initiator.id())
+                .param("createdByName", initiator.name())
                 .query((rs, n) -> rs.getTimestamp("created_at").toInstant())
                 .single();
     }

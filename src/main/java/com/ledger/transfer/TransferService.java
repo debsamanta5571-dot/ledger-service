@@ -6,6 +6,7 @@ import com.ledger.account.Account;
 import com.ledger.account.AccountClosedException;
 import com.ledger.account.AccountNotFoundException;
 import com.ledger.account.AccountRepository;
+import com.ledger.api.Caller;
 import com.ledger.ledger.BalancingRule;
 import com.ledger.ledger.EntryDraft;
 import com.ledger.ledger.OverdraftRule;
@@ -40,14 +41,15 @@ public class TransferService {
      * including the idempotency claim, so a failed request can safely be retried with the same key.
      */
     @Transactional
-    public TransferResult transfer(String clientId, String idempotencyKey, TransferRequest req) {
-        // clientId is the caller (com.ledger.api.Caller): it scopes idempotency keys and must own the source account.
+    public TransferResult transfer(Caller caller, String idempotencyKey, TransferRequest req) {
+        // Idempotency keys are scoped per caller; the caller must own the source account unless they are an admin.
+        String clientId = caller.id();
         String hash = RequestHasher.hash(req);
         if (!idempotency.claim(clientId, idempotencyKey, hash)) {
             return replay(clientId, idempotencyKey, hash);
         }
 
-        TransferResponse response = post(clientId, req);
+        TransferResponse response = post(caller, req);
 
         idempotency.complete(clientId, idempotencyKey, HttpStatus.CREATED.value(), toJson(response));
         return new TransferResult(HttpStatus.CREATED.value(), response, false);
@@ -66,7 +68,7 @@ public class TransferService {
         return new TransferResult(stored.status(), fromJson(stored.body()), true);
     }
 
-    private TransferResponse post(String owner, TransferRequest req) {
+    private TransferResponse post(Caller caller, TransferRequest req) {
         if (req.fromAccountId().equals(req.toAccountId())) {
             throw new InvalidTransferException("Source and destination accounts must differ");
         }
@@ -74,8 +76,8 @@ public class TransferService {
         // Lock only the account being drained. It is the only balance this transfer can push below its
         // limit. One lock per transaction means no lock ordering to get wrong; NO KEY UPDATE (see the repository)
         // keeps the destination's foreign-key check from blocking, which is what avoids A<->B deadlocks.
-        // Only the owner can send from an account; someone else's looks exactly like a missing one (404).
-        Account from = accounts.findOwnedForTransferSource(req.fromAccountId(), owner)
+        // Only the owner (or an admin) can send from an account; to anyone else it looks exactly like a missing one.
+        Account from = accounts.findVisibleForTransferSource(req.fromAccountId(), caller)
                 .orElseThrow(() -> new AccountNotFoundException(req.fromAccountId()));
         // The destination may be anyone's (paying another customer). KEY SHARE: it cannot be closed or deleted while
         // this transfer is in flight (see the repository).
@@ -108,7 +110,7 @@ public class TransferService {
         OverdraftRule.check(balance, from.overdraftLimit(), amount);
 
         UUID txId = UUID.randomUUID();
-        Instant createdAt = transfers.insertTransaction(txId, req.description());
+        Instant createdAt = transfers.insertTransaction(txId, req.description(), caller);
         transfers.insertEntries(txId, entries);
 
         return new TransferResponse(txId, from.id(), to.id(), amount, req.currency(), req.description(), createdAt,

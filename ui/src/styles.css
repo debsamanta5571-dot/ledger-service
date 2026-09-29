@@ -173,3 +173,13 @@ button.link {
   cursor: pointer;
   opacity: 0.8;
 }
+.badge.admin {
+  border-color: #d29922;
+  color: #d29922;
+}
+.admin-bar {
+  padding: 8px 12px;
+  border: 1px solid #d2992266;
+  border-radius: 6px;
+  justify-content: space-between;
+}

@@ -284,6 +284,25 @@ id. Because an API key's id is the owner, rotating a key rewrites the secret on 
 rotation cannot orphan accounts. Accounts created before ownership existed were assigned to the bootstrap key by
 migration V6.
 
+### Two tiers: normal users and admins
+- **Normal users** act only on their own accounts (above).
+- **Admins** hold the `ledger:admin` scope, which the identity service grants only to its `admin` role. They see every
+  account (with its owner's name), read any statement, send money from any account, and close or delete any account.
+  In the UI they get an *Admin* badge, an *Owner* column and an *Only mine* filter; via the API, `GET /accounts` returns
+  everyone's accounts for an admin unless `?mine=true`.
+
+The access rule is one SQL predicate, `(owner_id = :caller OR :admin)`, used by every lookup, so the two tiers cannot
+drift apart between endpoints. Being an admin grants *reach*, not exemption from the ledger's rules: an admin still
+cannot overdraw an account, strand money by closing a funded account, or delete an account with history.
+
+**Accountability.** Every transaction records who initiated it (`created_by`, plus a readable name), and statements
+show it in a *By* column, so a customer can see that an admin, by name, moved their money. Admin actions on someone
+else's account are also logged. The name comes from the access token's `name` claim, which the identity service
+includes only when the `profile` scope is granted; email addresses are never put in access tokens.
+
+A token from the ledger page cannot manage identity-service users even for an admin: the page never requests
+`users:admin`, so that power stays in the admin console.
+
 ### Removing an account: close it, or delete it only if it was never used
 Entries are append-only, so an account is never deleted: that would break its entries' foreign keys or erase its
 history. `DELETE /accounts/{id}` sets `closed_at` instead. It is refused unless the balance is exactly zero (no
@@ -376,7 +395,8 @@ dropped: it is either a bad test or a real bug. See `scripts/llm-testgen/`.
 ## Known limitations / next steps
 
 - Ownership is per caller (one API key, or one identity-service user). There is no sharing, no joint accounts and
-  no organisation-level access; those would need an owner *group* rather than a single owner id.
+  no organisation-level access; those would need an owner *group* rather than a single owner id. The admin tier is
+  all-or-nothing: there is no "admin for one branch".
 - No deposit/withdrawal against the outside world; fund accounts through an overdraft-enabled treasury account.
 - Single currency per transfer; no FX. `ASSET`/`LIABILITY` only (no equity/revenue/expense).
 - Statement pagination is offset-based; very large date ranges would want keyset pagination or checkpoints.

@@ -31,18 +31,20 @@ public class AccountController {
     @PostMapping
     public ResponseEntity<AccountResponse> create(Authentication caller,
                                                   @Valid @RequestBody CreateAccountRequest request) {
-        AccountResponse created = service.create(Caller.id(caller), request);
+        AccountResponse created = service.create(Caller.of(caller), request);
         return ResponseEntity.created(URI.create("/accounts/" + created.id())).body(created);
     }
 
     @GetMapping
     public java.util.List<AccountResponse> list(Authentication caller,
                                                 @RequestParam(defaultValue = "50") int limit,
-                                                @RequestParam(defaultValue = "false") boolean includeClosed) {
+                                                @RequestParam(defaultValue = "false") boolean includeClosed,
+                                                @RequestParam(defaultValue = "false") boolean mine) {
         if (limit < 1 || limit > 100) {
             throw new InvalidRequestException("'limit' must be between 1 and 100");
         }
-        return service.list(Caller.id(caller), limit, includeClosed);
+        // Admins see every account unless they ask for only their own (?mine=true).
+        return service.list(Caller.of(caller), limit, includeClosed, mine);
     }
 
     /**
@@ -56,15 +58,15 @@ public class AccountController {
     public ResponseEntity<Void> delete(Authentication caller, @PathVariable UUID id,
                                        @RequestParam(defaultValue = "false") boolean permanent) {
         if (permanent) {
-            service.deletePermanently(Caller.id(caller), id);
+            service.deletePermanently(Caller.of(caller), id);
         } else {
-            service.close(Caller.id(caller), id);
+            service.close(Caller.of(caller), id);
         }
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
     public AccountResponse get(Authentication caller, @PathVariable UUID id) {
-        return service.get(Caller.id(caller), id);
+        return service.get(Caller.of(caller), id);
     }
 }

@@ -89,8 +89,10 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         }
 
         // The principal name is the key id, which TransferController uses to scope idempotency keys per caller.
-        SecurityContextHolder.getContext().setAuthentication(
-                UsernamePasswordAuthenticationToken.authenticated(key.get().id().toString(), null, authorities));
+        UsernamePasswordAuthenticationToken authentication =
+                UsernamePasswordAuthenticationToken.authenticated(key.get().id().toString(), null, authorities);
+        authentication.setDetails(key.get().name()); // readable label for audit trails (see Caller)
+        SecurityContextHolder.getContext().setAuthentication(authentication);
         chain.doFilter(request, response);
     }
 

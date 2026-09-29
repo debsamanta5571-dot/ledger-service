@@ -17,6 +17,7 @@ import com.ledger.account.Account;
 import com.ledger.account.AccountNotFoundException;
 import com.ledger.account.AccountRepository;
 import com.ledger.account.AccountType;
+import com.ledger.api.Caller;
 import com.ledger.ledger.Direction;
 import com.ledger.ledger.EntryDraft;
 import com.ledger.ledger.InsufficientFundsException;
@@ -38,6 +39,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TransferServiceTest {
 
     private static final String CLIENT = "client-1";
+    private static final Caller CALLER = new Caller(CLIENT, "Test client", false);
     private static final String KEY = "key-1";
 
     @Mock AccountRepository accounts;
@@ -56,7 +58,7 @@ class TransferServiceTest {
     }
 
     private Account account(UUID id, AccountType type, String currency, long overdraft) {
-        return new Account(id, CLIENT, "acct", currency, type, overdraft, Instant.now(), null);
+        return new Account(id, CLIENT, "Test client", "acct", currency, type, overdraft, Instant.now(), null);
     }
 
     private TransferRequest request(long amount) {
@@ -66,10 +68,10 @@ class TransferServiceTest {
     /** Stubs a fresh idempotency key plus the two accounts; {@code fromNet} is debits-minus-credits of the source. */
     private void givenFreshTransfer(Account from, Account to, long fromNet) {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
-        when(accounts.findOwnedForTransferSource(fromId, CLIENT)).thenReturn(Optional.of(from));
+        when(accounts.findVisibleForTransferSource(fromId, CALLER)).thenReturn(Optional.of(from));
         when(accounts.findForTransferDestination(toId)).thenReturn(Optional.of(to));
         when(accounts.debitsMinusCredits(fromId)).thenReturn(fromNet);
-        when(transfers.insertTransaction(any(), any())).thenReturn(Instant.parse("2025-01-01T00:00:00Z"));
+        when(transfers.insertTransaction(any(), any(), any())).thenReturn(Instant.parse("2025-01-01T00:00:00Z"));
     }
 
     @SuppressWarnings("unchecked")
@@ -84,7 +86,7 @@ class TransferServiceTest {
         givenFreshTransfer(account(fromId, AccountType.ASSET, "USD", 0), account(toId, AccountType.ASSET, "USD", 0),
                 1000);
 
-        TransferResult result = service.transfer(CLIENT, KEY, request(300));
+        TransferResult result = service.transfer(CALLER, KEY, request(300));
 
         assertThat(result.status()).isEqualTo(201);
         assertThat(result.replayed()).isFalse();
@@ -100,7 +102,7 @@ class TransferServiceTest {
         givenFreshTransfer(account(fromId, AccountType.LIABILITY, "USD", 0),
                 account(toId, AccountType.LIABILITY, "USD", 0), -1000);
 
-        service.transfer(CLIENT, KEY, request(400));
+        service.transfer(CALLER, KEY, request(400));
 
         assertThat(capturedEntries()).containsExactly(
                 new EntryDraft(fromId, Direction.DEBIT, 400),
@@ -110,14 +112,14 @@ class TransferServiceTest {
     @Test
     void rejectsATransferThatWouldOverdrawTheSourceAndPostsNothing() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
-        when(accounts.findOwnedForTransferSource(fromId, CLIENT)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
+        when(accounts.findVisibleForTransferSource(fromId, CALLER)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
         when(accounts.findForTransferDestination(toId)).thenReturn(Optional.of(account(toId, AccountType.ASSET, "USD", 0)));
         when(accounts.debitsMinusCredits(fromId)).thenReturn(100L);
 
-        assertThatThrownBy(() -> service.transfer(CLIENT, KEY, request(101)))
+        assertThatThrownBy(() -> service.transfer(CALLER, KEY, request(101)))
                 .isInstanceOf(InsufficientFundsException.class);
 
-        verify(transfers, never()).insertTransaction(any(), any());
+        verify(transfers, never()).insertTransaction(any(), any(), any());
         verify(transfers, never()).insertEntries(any(), any());
         verify(idempotency, never()).complete(anyString(), anyString(), anyInt(), anyString());
     }
@@ -127,7 +129,7 @@ class TransferServiceTest {
         givenFreshTransfer(account(fromId, AccountType.ASSET, "USD", 500), account(toId, AccountType.ASSET, "USD", 0),
                 0);
 
-        TransferResult result = service.transfer(CLIENT, KEY, request(500));
+        TransferResult result = service.transfer(CALLER, KEY, request(500));
 
         assertThat(result.status()).isEqualTo(201);
     }
@@ -136,7 +138,7 @@ class TransferServiceTest {
     void rejectsTransferToTheSameAccountBeforeTouchingTheDatabaseRows() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
 
-        assertThatThrownBy(() -> service.transfer(CLIENT, KEY,
+        assertThatThrownBy(() -> service.transfer(CALLER, KEY,
                 new TransferRequest(fromId, fromId, 10L, "USD", null)))
                 .isInstanceOf(InvalidTransferException.class);
 
@@ -146,10 +148,10 @@ class TransferServiceTest {
     @Test
     void rejectsCurrencyMismatch() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
-        when(accounts.findOwnedForTransferSource(fromId, CLIENT)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
+        when(accounts.findVisibleForTransferSource(fromId, CALLER)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
         when(accounts.findForTransferDestination(toId)).thenReturn(Optional.of(account(toId, AccountType.ASSET, "EUR", 0)));
 
-        assertThatThrownBy(() -> service.transfer(CLIENT, KEY, request(10)))
+        assertThatThrownBy(() -> service.transfer(CALLER, KEY, request(10)))
                 .isInstanceOf(InvalidTransferException.class)
                 .hasMessageContaining("USD");
         verify(transfers, never()).insertEntries(any(), any());
@@ -158,19 +160,19 @@ class TransferServiceTest {
     @Test
     void rejectsTypeMismatch() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
-        when(accounts.findOwnedForTransferSource(fromId, CLIENT)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
+        when(accounts.findVisibleForTransferSource(fromId, CALLER)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
         when(accounts.findForTransferDestination(toId)).thenReturn(Optional.of(account(toId, AccountType.LIABILITY, "USD", 0)));
 
-        assertThatThrownBy(() -> service.transfer(CLIENT, KEY, request(10)))
+        assertThatThrownBy(() -> service.transfer(CALLER, KEY, request(10)))
                 .isInstanceOf(InvalidTransferException.class);
     }
 
     @Test
     void reportsUnknownSourceAccount() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
-        when(accounts.findOwnedForTransferSource(fromId, CLIENT)).thenReturn(Optional.empty());
+        when(accounts.findVisibleForTransferSource(fromId, CALLER)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.transfer(CLIENT, KEY, request(10)))
+        assertThatThrownBy(() -> service.transfer(CALLER, KEY, request(10)))
                 .isInstanceOf(AccountNotFoundException.class);
     }
 
@@ -185,7 +187,7 @@ class TransferServiceTest {
         when(idempotency.find(CLIENT, KEY)).thenReturn(Optional.of(new IdempotencyRepository.Stored(
                 RequestHasher.hash(req), 201, json.writeValueAsString(original))));
 
-        TransferResult result = service.transfer(CLIENT, KEY, req);
+        TransferResult result = service.transfer(CALLER, KEY, req);
 
         assertThat(result.replayed()).isTrue();
         assertThat(result.status()).isEqualTo(201);
@@ -199,7 +201,7 @@ class TransferServiceTest {
         when(idempotency.find(CLIENT, KEY)).thenReturn(Optional.of(
                 new IdempotencyRepository.Stored(RequestHasher.hash(request(300)), 201, "{}")));
 
-        assertThatThrownBy(() -> service.transfer(CLIENT, KEY, request(999)))
+        assertThatThrownBy(() -> service.transfer(CALLER, KEY, request(999)))
                 .isInstanceOf(IdempotencyConflictException.class);
         verifyNoInteractions(accounts, transfers);
     }

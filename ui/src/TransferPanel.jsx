@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { api, describeError } from './api.js';
 import { formatMinor, parseMajor } from './money.js';
 import { newIdempotencyKey } from './ids.js';
+import { accountLabel } from './labels.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export default function TransferPanel({ auth, accounts: allAccounts, onChanged }) {
+export default function TransferPanel({ auth, isAdmin, accounts: allAccounts, onChanged }) {
   const accounts = allAccounts.filter((a) => !a.closedAt);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -75,7 +76,7 @@ export default function TransferPanel({ auth, accounts: allAccounts, onChanged }
           <option value="">From…</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
-              {a.name} ({a.currency}, {formatMinor(a.balance)})
+              {accountLabel(a, { showOwner: isAdmin, withBalance: formatMinor(a.balance) })}
             </option>
           ))}
         </select>
@@ -85,7 +86,7 @@ export default function TransferPanel({ auth, accounts: allAccounts, onChanged }
             .filter((a) => a.id !== from)
             .map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} ({a.currency})
+                {accountLabel(a, { showOwner: isAdmin })}
               </option>
             ))}
           <option value='__other__'>Someone else's account…</option>

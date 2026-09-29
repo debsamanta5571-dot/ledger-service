@@ -31,6 +31,8 @@ public record StatementResponse(
             long amount,
             long balanceAfter,
             String description,
+            // Who initiated the transfer (null for entries recorded before this was tracked).
+            String initiatedBy,
             Instant createdAt) {
     }
 }
