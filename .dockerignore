@@ -1,0 +1,10 @@
+target/
+.git/
+.github/
+.idea/
+.vscode/
+ui/node_modules/
+ui/dist/
+docs/
+*.md
+docker-compose.yml

@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: ledger-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ledger}
+    username: ${DB_USER:ledger}
+    password: ${DB_PASSWORD:ledger}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  shutdown: graceful
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+  api-docs:
+    path: /v3/api-docs
+
+ledger:
+  auth:
+    # Registered on startup so a fresh deployment is usable. Set LEDGER_BOOTSTRAP_API_KEY in real environments.
+    bootstrap-api-key: ${LEDGER_BOOTSTRAP_API_KEY:}
+    bootstrap-rate-limit-per-minute: ${LEDGER_RATE_LIMIT_PER_MINUTE:60}
+    # Scopes granted to X-API-Key callers (legacy machine access). Read-only by default: least privilege.
+    api-key-scopes: ${LEDGER_API_KEY_SCOPES:accounts:read,transfers:read}
+    # Bearer tokens issued by the identity service. Keys are fetched from the JWKS endpoint (lazily, cached).
+    jwt:
+      jwk-set-uri: ${IDENTITY_JWKS_URI:http://localhost:5001/.well-known/jwks}
+      issuer: ${IDENTITY_ISSUER:https://localhost:5001/}
+      audience: ledger-api
+  jobs:
+    daily-balances:
+      enabled: true
+      cron: "0 5 0 * * *"

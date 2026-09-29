@@ -1,0 +1,37 @@
+name: Dependency scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "42 4 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  # Blocks PRs that introduce a dependency with a known HIGH+ vulnerability (uses GitHub's dependency graph).
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  # Scans the resolved dependency tree of the repo (pom.xml, ui/package-lock.json) against known CVEs.
+  trivy-fs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"

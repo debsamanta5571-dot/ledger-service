@@ -1,0 +1,40 @@
+# Local development stack:  docker compose up --build
+# API on http://localhost:8080 (Swagger UI at /swagger-ui), Postgres on localhost:5432.
+# The API key below is a LOCAL-ONLY default; never reuse it anywhere else.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ledger
+      POSTGRES_USER: ledger
+      POSTGRES_PASSWORD: ledger
+    ports:
+      - "5432:5432"
+    volumes:
+      - ledger-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledger -d ledger"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/ledger
+      DB_USER: ledger
+      DB_PASSWORD: ledger
+      LEDGER_BOOTSTRAP_API_KEY: ${LEDGER_BOOTSTRAP_API_KEY:-dev-local-key}
+      LEDGER_RATE_LIMIT_PER_MINUTE: ${LEDGER_RATE_LIMIT_PER_MINUTE:-600}
+      # LOCAL ONLY: the dev key may write. Production keeps the read-only default; people use identity-service tokens.
+      LEDGER_API_KEY_SCOPES: ${LEDGER_API_KEY_SCOPES:-accounts:read,accounts:write,transfers:read,transfers:write}
+      IDENTITY_JWKS_URI: ${IDENTITY_JWKS_URI:-http://host.docker.internal:5001/.well-known/jwks}
+      IDENTITY_ISSUER: ${IDENTITY_ISSUER:-https://localhost:5001/}
+    ports:
+      - "8080:8080"
+
+volumes:
+  ledger-data:

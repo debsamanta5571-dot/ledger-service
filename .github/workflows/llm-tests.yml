@@ -1,0 +1,140 @@
+name: LLM-generated tests
+
+# For every PR that changes main Java sources: ask an LLM for unit tests, keep only the ones that compile and
+# pass, report the coverage delta they add, then run PIT mutation testing to show which generated tests actually
+# kill mutants. Informational: it reports and uploads artifacts, it does not block merges.
+#
+# Security model: model output is untrusted code. The job that talks to the API (`generate`) holds the secret but
+# never executes anything it produced; the job that compiles and runs generated code (`evaluate`) has no secrets.
+# Only same-repository PRs run (fork PRs cannot read secrets anyway). Setup: add repo secret ANTHROPIC_API_KEY.
+
+on:
+  pull_request:
+    paths:
+      - "src/main/java/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llm-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Generate tests (has API key, runs no generated code)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      has_tests: ${{ steps.result.outputs.has_tests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Test the generation scripts themselves
+        run: node --test "scripts/**/*.test.mjs"
+
+      - name: List changed main sources
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git diff --name-only --diff-filter=AM "origin/${BASE_REF}...HEAD" -- 'src/main/java/**/*.java' > changed.txt
+          echo "Changed sources:"; cat changed.txt
+
+      - name: Generate tests with the Anthropic API
+        id: result
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+        run: |
+          echo "has_tests=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::notice::ANTHROPIC_API_KEY is not configured; skipping test generation."
+            exit 0
+          fi
+          if [ ! -s changed.txt ]; then exit 0; fi
+          node scripts/llm-testgen/generate.mjs --files-from changed.txt --out target/llm-testgen
+          if grep -q '"status": "generated"' target/llm-testgen/manifest.json; then
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: steps.result.outputs.has_tests == 'true'
+        with:
+          name: llm-testgen
+          path: target/llm-testgen
+          retention-days: 7
+
+  evaluate:
+    name: Verify, measure coverage delta, mutation-test (no secrets)
+    needs: generate
+    if: needs.generate.outputs.has_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: llm-testgen
+          path: ${{ runner.temp }}/llm-testgen
+
+      # Unit tests only (no Docker/Testcontainers): this isolates what the generated unit tests add. `clean`
+      # matters: JaCoCo appends to jacoco.exec, so a stale file would contaminate the second measurement.
+      - name: Baseline coverage (existing unit tests)
+        run: |
+          mvn -B clean verify -Dtest='*Test' -Dsurefire.failIfNoSpecifiedTests=false
+          cp target/site/jacoco/jacoco.csv "$RUNNER_TEMP/baseline.csv"
+
+      - name: Install generated tests and keep only those that compile and pass
+        run: |
+          cp -r "$RUNNER_TEMP/llm-testgen/src/test/java/." src/test/java/
+          node scripts/llm-testgen/verify.mjs --manifest "$RUNNER_TEMP/llm-testgen/manifest.json" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Coverage with generated tests
+        run: |
+          mvn -B clean verify -Dtest='*Test' -Dsurefire.failIfNoSpecifiedTests=false
+          cp target/site/jacoco/jacoco.csv "$RUNNER_TEMP/after.csv"
+          CLASSES=$(node -e "const m=require('$RUNNER_TEMP/llm-testgen/manifest.verified.json');console.log(m.entries.filter(e=>e.status==='verified').map(e=>e.fqcn).join(','))")
+          echo "VERIFIED_CLASSES=$CLASSES" >> "$GITHUB_ENV"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          node scripts/llm-testgen/coverage-delta.mjs "$RUNNER_TEMP/baseline.csv" "$RUNNER_TEMP/after.csv" "$CLASSES" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Mutation testing (PIT) on the changed classes
+        if: env.VERIFIED_CLASSES != ''
+        run: |
+          mvn -B -Ppitest -Djacoco.skip=true test-compile org.pitest:pitest-maven:mutationCoverage \
+            -DtargetClasses="$VERIFIED_CLASSES" -DtargetTests='com.ledger.*Test'
+
+      - name: Which generated tests kill mutants?
+        if: always() && env.VERIFIED_CLASSES != ''
+        run: |
+          echo >> "$GITHUB_STEP_SUMMARY"
+          node scripts/llm-testgen/pit-report.mjs target/pit-reports/mutations.xml "$RUNNER_TEMP/llm-testgen/manifest.verified.json" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: llm-testgen-results
+          retention-days: 14
+          path: |
+            target/pit-reports/
+            ${{ runner.temp }}/baseline.csv
+            ${{ runner.temp }}/after.csv
+            ${{ runner.temp }}/llm-testgen/manifest.verified.json
+            src/test/java/**/*GeneratedTest.java

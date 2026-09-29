@@ -1,0 +1,65 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+section {
+  margin-bottom: 32px;
+}
+h1 {
+  margin-bottom: 8px;
+}
+h2 {
+  border-bottom: 1px solid #8884;
+  padding-bottom: 4px;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+input,
+select,
+button {
+  padding: 6px 8px;
+  font: inherit;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th,
+td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid #8883;
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.neg {
+  color: #c62828;
+}
+.mono {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85em;
+}
+.error {
+  color: #c62828;
+}
+.ok {
+  color: #2e7d32;
+}
+.hint {
+  opacity: 0.6;
+}
