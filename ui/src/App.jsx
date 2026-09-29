@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from './api.js';
 import AccountsPanel from './AccountsPanel.jsx';
 import TransferPanel from './TransferPanel.jsx';
@@ -18,14 +18,23 @@ export default function App() {
   const [apiKey, setApiKey] = useState(loadKey);
   const [accounts, setAccounts] = useState([]);
   const [error, setError] = useState(null);
+  const latestKey = useRef(apiKey);
+  latestKey.current = apiKey;
 
   const refresh = useCallback(async () => {
-    if (!apiKey) return;
+    if (!apiKey) {
+      setAccounts([]);
+      return;
+    }
     try {
       const { data } = await api(apiKey, '/accounts?limit=100');
+      if (latestKey.current !== apiKey) return; // a newer key was typed while this request was in flight
       setAccounts(data);
       setError(null);
     } catch (e) {
+      if (latestKey.current !== apiKey) return;
+      // Never keep showing data that was loaded with a different (or now-invalid) key.
+      setAccounts([]);
       setError(describeError(e));
     }
   }, [apiKey]);
@@ -60,14 +69,14 @@ export default function App() {
         {error && <p className="error">{error}</p>}
       </section>
 
-      {apiKey ? (
+      {apiKey && !error ? (
         <>
           <AccountsPanel apiKey={apiKey} accounts={accounts} onChanged={refresh} />
           <TransferPanel apiKey={apiKey} accounts={accounts} onChanged={refresh} />
           <StatementPanel apiKey={apiKey} accounts={accounts} />
         </>
       ) : (
-        <p>Enter an API key to begin.</p>
+        <p>{apiKey ? 'Fix the API key above to continue.' : 'Enter an API key to begin.'}</p>
       )}
     </main>
   );
