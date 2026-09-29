@@ -28,7 +28,7 @@ flowchart LR
     CLI["curl / API clients"] -->|HTTPS + X-API-Key| F
 
     subgraph Service["Spring Boot service"]
-        F["Spring Security chain<br/>JWT (JWKS) or API key, scope per endpoint"] --> C["Controllers<br/>accounts · transfers · statement · health"]
+        F["Spring Security chain<br/>JWT (JWKS) or API key, scope per endpoint"] --> C["Controllers<br/>accounts · transfers · statements · health"]
         C --> S["Services<br/>(one DB transaction per write)"]
         S --> R["Rules<br/>BalancingRule · OverdraftRule"]
         S --> Repo["Repositories (JdbcClient)"]
@@ -184,9 +184,9 @@ curl -s -i "${H[@]}" -X POST $API/transfers -H "Idempotency-Key: alice-pays-bob-
 curl -s "${H[@]}" -X POST $API/transfers -H "Idempotency-Key: too-much-1" \
   -d "{\"fromAccountId\":\"$ALICE\",\"toAccountId\":\"$BOB\",\"amount\":999999,\"currency\":\"USD\"}"
 
-# Balances and a paginated statement with running balances
+# Balances and paginated statements with running balances
 curl -s "${H[@]}" $API/accounts/$ALICE
-curl -s "${H[@]}" "$API/accounts/$ALICE/statement?from=2024-01-01&page=0&size=20"
+curl -s "${H[@]}" "$API/accounts/$ALICE/statements?from=2024-01-01&page=0&size=20"
 ```
 
 An error response is `application/problem+json`, for example:
@@ -210,7 +210,8 @@ An error response is `application/problem+json`, for example:
 | `GET /accounts` / `GET /accounts/{id}` | list of open accounts (newest first, `limit` ≤ 100, `includeClosed=true` for all) / one account with derived balance |
 | `DELETE /accounts/{id}` | **closes** the account: 204 (also if already closed), 409 if the balance is not zero |
 | `DELETE /accounts/{id}?permanent=true` | deletes it for good: 204 only if it has **never** had a transaction, otherwise 409 |
-| `GET /accounts/{id}/statement` | `from`, `to` (inclusive UTC dates), `page`, `size` ≤ 100; opening/closing balance and a running balance per entry |
+| `POST /api-keys` / `GET /api-keys` / `DELETE /api-keys/{id}` | create (secret shown once) / list / revoke personal API keys |
+| `GET /accounts/{id}/statements` | `from`, `to` (inclusive UTC dates), `page`, `size` ≤ 100; opening/closing balance and a running balance per entry |
 | `POST /transfers` | requires `Idempotency-Key`; send from your own account to anyone's; 201 / 404 / 409 / 422 |
 | `GET /health` | database connectivity; no auth |
 | `/swagger-ui`, `/v3/api-docs` | OpenAPI; no auth |
@@ -274,7 +275,7 @@ Not implemented: expiry of old keys (a purge job would be needed at scale).
 ### Account ownership
 Scopes say *what kind* of thing a caller may do; ownership says *to which accounts*. Every account stores the caller
 that created it: an API key's id, or `user:<subject>` for an identity-service token. Everything that reads or
-changes an account (get, list, statement, close, delete, and the *source* of a transfer) matches on id **and** owner
+changes an account (get, list, statements, close, delete, and the *source* of a transfer) matches on id **and** owner
 in the SQL itself, so another customer's row is never even locked. The *destination* of a transfer may belong to
 anyone, as at a real bank: you can pay into an account you cannot see.
 
@@ -287,7 +288,7 @@ migration V6.
 ### Two tiers: normal users and admins
 - **Normal users** act only on their own accounts (above).
 - **Admins** hold the `ledger:admin` scope, which the identity service grants only to its `admin` role. They see every
-  account (with its owner's name), read any statement, send money from any account, and close or delete any account.
+  account (with its owner's name), read any account's statements, send money from any account, and close or delete any account.
   In the UI they get an *Admin* badge, an *Owner* column and an *Only mine* filter; via the API, `GET /accounts` returns
   everyone's accounts for an admin unless `?mine=true`.
 
@@ -300,13 +301,34 @@ show it in a *By* column, so a customer can see that an admin, by name, moved th
 else's account are also logged. The name comes from the access token's `name` claim, which the identity service
 includes only when the `profile` scope is granted; email addresses are never put in access tokens.
 
-A token from the ledger page cannot manage identity-service users even for an admin: the page never requests
-`users:admin`, so that power stays in the admin console.
+The page also requests `users:admin`, which only admins receive, so the **New account** dialog can create a
+sign-in account for a new customer directly in the identity service. Trade-off: an admin's ledger-page token can manage
+users for its 10-minute life. The alternative, a separate step-up sign-in just for that action, would keep the power
+out of routine tokens at the cost of a second redirect.
+
+### New account dialog and personal API keys
+**+ New account** opens a dialog that always opens a ledger account and can, in the same step:
+- **create a sign-in account** for a new person (admins only): email, name, role, and a typed or generated password.
+  The new ledger account is opened *for that person* (`POST /accounts` with `ownerId`, admin-only);
+- **generate a personal API key** for the account's owner, for scripts.
+
+Secrets are shown once on the result screen, with copy buttons, and never stored by the page. If a later step fails,
+the dialog reports what already succeeded, so nothing is created twice by retrying.
+
+A **personal API key** acts *as its owner*: same accounts, attributed to them ("Kay (API key)" on statements). Only
+its SHA-256 is stored and the secret starts with `lk_` so leaks are easy to recognise. Rules:
+- only a signed-in person can create one, never another key, so a leaked key cannot mint replacements;
+- a key never carries `ledger:admin`: admin power needs an interactive sign-in, even when an admin made the key;
+- only an admin can create a key for someone else;
+- `GET /api-keys` lists yours (an admin: everyone's), without secrets; `DELETE /api-keys/{id}` revokes one at once.
+
+Bootstrap-key rotation only ever touches keys with no owner, so a personal key someone named "bootstrap" cannot be
+hijacked or revoked by it (tested).
 
 ### Removing an account: close it, or delete it only if it was never used
 Entries are append-only, so an account is never deleted: that would break its entries' foreign keys or erase its
 history. `DELETE /accounts/{id}` sets `closed_at` instead. It is refused unless the balance is exactly zero (no
-stranded money); a closed account keeps its statement but is hidden from listings and cannot send or receive.
+stranded money); a closed account keeps its statements but is hidden from listings and cannot send or receive.
 
 `?permanent=true` really deletes the row, but only for an account with **no entries at all** (a typo, a test
 account). Nothing is lost in that case. An account with history is refused (`409 account-has-history`), even at a
@@ -330,7 +352,7 @@ Ordered by `(created_at, id)` with a **window function** for the running balance
 every page shows correct balances. Trade-off: cost grows with the size of the date range, not the page number;
 paging is offset-based for simple client code (keyset pagination would scale better). Entry timestamps use
 `clock_timestamp()` rather than `now()`: `now()` is the transaction *start*, so a transfer that waited on a lock
-would be timestamped before the one it queued behind and the statement would show an impossible running balance.
+would be timestamped before the one it queued behind and the statements would show an impossible running balance.
 
 ### Authentication, scopes and rate limiting
 Two credential types, one authorisation table ([`SecurityConfig`](src/main/java/com/ledger/api/SecurityConfig.java)):
@@ -348,8 +370,11 @@ Each endpoint declares the scope it needs, and anything not listed is denied:
 | Endpoint | Scope |
 | --- | --- |
 | `GET /accounts`, `GET /accounts/{id}` | `accounts:read` |
-| `POST /accounts` | `accounts:write` |
-| `GET /accounts/{id}/statement` | `transfers:read` |
+| `POST /accounts` | `accounts:write` (`ownerId`: admins only) |
+| `DELETE /accounts/{id}` | `accounts:write` |
+| `GET /api-keys` | `accounts:read` |
+| `POST /api-keys`, `DELETE /api-keys/{id}` | `accounts:write` (creating: signed-in people only) |
+| `GET /accounts/{id}/statements` | `transfers:read` |
 | `POST /transfers` | `transfers:write` |
 
 Read and write scopes are separate on purpose: a token with `transfers:write` cannot list accounts, and one with
@@ -399,7 +424,7 @@ dropped: it is either a bad test or a real bug. See `scripts/llm-testgen/`.
   all-or-nothing: there is no "admin for one branch".
 - No deposit/withdrawal against the outside world; fund accounts through an overdraft-enabled treasury account.
 - Single currency per transfer; no FX. `ASSET`/`LIABILITY` only (no equity/revenue/expense).
-- Statement pagination is offset-based; very large date ranges would want keyset pagination or checkpoints.
+- Statements pagination is offset-based; very large date ranges would want keyset pagination or checkpoints.
 - Rate limiter and API-key lookups are per-instance / per-request; use Redis and a short-lived cache at scale.
 - Access tokens are verified offline, so revoking a session upstream does not stop tokens already issued; they
   expire within minutes (the identity service issues 10-minute access tokens). Introspection would close that gap

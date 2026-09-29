@@ -89,8 +89,8 @@ class JwtScopeIT extends AbstractIntegrationTest {
     @Test
     void statementNeedsTransfersRead() throws Exception {
         UUID account = newAccountOwnedBy(TOKEN_OWNER, AccountType.ASSET);
-        getWith("/accounts/" + account + "/statement", TestJwks.token("accounts:read")).andExpect(status().isForbidden());
-        getWith("/accounts/" + account + "/statement", TestJwks.token("transfers:read")).andExpect(status().isOk());
+        getWith("/accounts/" + account + "/statements", TestJwks.token("accounts:read")).andExpect(status().isForbidden());
+        getWith("/accounts/" + account + "/statements", TestJwks.token("transfers:read")).andExpect(status().isOk());
     }
 
     @Test

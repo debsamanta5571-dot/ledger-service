@@ -89,9 +89,13 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         }
 
         // The principal name is the key id, which TransferController uses to scope idempotency keys per caller.
+        // A personal key acts as its owner, with its own scopes; a service key as itself, with the configured ones.
+        List<GrantedAuthority> granted = key.get().scopes() == null
+                ? authorities
+                : key.get().scopes().stream().<GrantedAuthority>map(s -> new SimpleGrantedAuthority("SCOPE_" + s)).toList();
         UsernamePasswordAuthenticationToken authentication =
-                UsernamePasswordAuthenticationToken.authenticated(key.get().id().toString(), null, authorities);
-        authentication.setDetails(key.get().name()); // readable label for audit trails (see Caller)
+                UsernamePasswordAuthenticationToken.authenticated(key.get().principal(), null, granted);
+        authentication.setDetails(key.get().label()); // readable label for audit trails (see Caller)
         SecurityContextHolder.getContext().setAuthentication(authentication);
         chain.doFilter(request, response);
     }

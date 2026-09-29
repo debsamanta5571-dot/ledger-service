@@ -33,7 +33,7 @@ class StatementControllerIT extends AbstractIntegrationTest {
     void fullHistoryShowsRunningBalancesInOrder() throws Exception {
         UUID asset = assetWithHistory();
 
-        mvc.perform(get("/accounts/" + asset + "/statement"))
+        mvc.perform(get("/accounts/" + asset + "/statements"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountId").value(asset.toString()))
                 .andExpect(jsonPath("$.currency").value("USD"))
@@ -57,7 +57,7 @@ class StatementControllerIT extends AbstractIntegrationTest {
         UUID asset = assetWithHistory();
 
         // Starts after the Jan 10 deposit; ends on Jan 20, which must include the 23:59:59 entry.
-        mvc.perform(get("/accounts/" + asset + "/statement?from=2024-01-12&to=2024-01-20"))
+        mvc.perform(get("/accounts/" + asset + "/statements?from=2024-01-12&to=2024-01-20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openingBalance").value(1000))
                 .andExpect(jsonPath("$.closingBalance").value(850))
@@ -66,12 +66,12 @@ class StatementControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.entries[1].balanceAfter").value(850));
 
         // Range ends before the last entry.
-        mvc.perform(get("/accounts/" + asset + "/statement?to=2024-01-19"))
+        mvc.perform(get("/accounts/" + asset + "/statements?to=2024-01-19"))
                 .andExpect(jsonPath("$.closingBalance").value(800))
                 .andExpect(jsonPath("$.totalElements").value(2));
 
         // Range after all activity: no entries, but opening == closing == current balance.
-        mvc.perform(get("/accounts/" + asset + "/statement?from=2024-02-01&to=2024-02-28"))
+        mvc.perform(get("/accounts/" + asset + "/statements?from=2024-02-01&to=2024-02-28"))
                 .andExpect(jsonPath("$.openingBalance").value(850))
                 .andExpect(jsonPath("$.closingBalance").value(850))
                 .andExpect(jsonPath("$.totalElements").value(0))
@@ -83,7 +83,7 @@ class StatementControllerIT extends AbstractIntegrationTest {
     void paginationSplitsEntriesButKeepsRunningBalancesCorrect() throws Exception {
         UUID asset = assetWithHistory();
 
-        mvc.perform(get("/accounts/" + asset + "/statement?size=2&page=0"))
+        mvc.perform(get("/accounts/" + asset + "/statements?size=2&page=0"))
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(2))
                 .andExpect(jsonPath("$.totalElements").value(3))
@@ -91,12 +91,12 @@ class StatementControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.entries.length()").value(2))
                 .andExpect(jsonPath("$.entries[1].balanceAfter").value(800));
 
-        mvc.perform(get("/accounts/" + asset + "/statement?size=2&page=1"))
+        mvc.perform(get("/accounts/" + asset + "/statements?size=2&page=1"))
                 .andExpect(jsonPath("$.entries.length()").value(1))
                 .andExpect(jsonPath("$.entries[0].balanceAfter").value(850))
                 .andExpect(jsonPath("$.closingBalance").value(850));
 
-        mvc.perform(get("/accounts/" + asset + "/statement?size=2&page=2"))
+        mvc.perform(get("/accounts/" + asset + "/statements?size=2&page=2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.entries.length()").value(0));
     }
@@ -108,7 +108,7 @@ class StatementControllerIT extends AbstractIntegrationTest {
         posting(liability, Direction.CREDIT, counter, Direction.DEBIT, 1000, JAN_10);
         posting(liability, Direction.DEBIT, counter, Direction.CREDIT, 200, JAN_15);
 
-        mvc.perform(get("/accounts/" + liability + "/statement"))
+        mvc.perform(get("/accounts/" + liability + "/statements"))
                 .andExpect(jsonPath("$.closingBalance").value(800))
                 .andExpect(jsonPath("$.entries[0].balanceAfter").value(1000))
                 .andExpect(jsonPath("$.entries[1].balanceAfter").value(800));
@@ -118,7 +118,7 @@ class StatementControllerIT extends AbstractIntegrationTest {
     void emptyAccountHasAnEmptyStatement() throws Exception {
         UUID asset = newAccount(AccountType.ASSET);
 
-        mvc.perform(get("/accounts/" + asset + "/statement"))
+        mvc.perform(get("/accounts/" + asset + "/statements"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openingBalance").value(0))
                 .andExpect(jsonPath("$.closingBalance").value(0))
@@ -133,7 +133,7 @@ class StatementControllerIT extends AbstractIntegrationTest {
         fund(from, AccountType.ASSET, 500);
         postTransfer(newKey(), from, to, 120).andExpect(status().isCreated());
 
-        mvc.perform(get("/accounts/" + from + "/statement"))
+        mvc.perform(get("/accounts/" + from + "/statements"))
                 .andExpect(jsonPath("$.entries.length()").value(2))
                 .andExpect(jsonPath("$.entries[1].direction").value("CREDIT"))
                 .andExpect(jsonPath("$.entries[1].amount").value(120))
@@ -144,7 +144,7 @@ class StatementControllerIT extends AbstractIntegrationTest {
 
     @Test
     void unknownAccountReturns404() throws Exception {
-        mvc.perform(get("/accounts/" + UUID.randomUUID() + "/statement"))
+        mvc.perform(get("/accounts/" + UUID.randomUUID() + "/statements"))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
@@ -152,7 +152,7 @@ class StatementControllerIT extends AbstractIntegrationTest {
     @Test
     void badParametersReturn400ProblemJson() throws Exception {
         UUID asset = newAccount(AccountType.ASSET);
-        String base = "/accounts/" + asset + "/statement";
+        String base = "/accounts/" + asset + "/statements";
         String[] badQueries = {
                 "?from=2024-02-01&to=2024-01-01",
                 "?size=0",

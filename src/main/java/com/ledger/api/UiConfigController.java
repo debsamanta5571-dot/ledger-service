@@ -21,10 +21,11 @@ public class UiConfigController {
                 "identityUrl", issuer,
                 "clientId", clientId,
                 // openid/profile/email identify the user; offline_access gives a refresh token; the rest are the
-                // ledger's own scopes. The identity service grants only those the user's role allows, so asking for
-                // ledger:admin is harmless: only the admin role receives it.
+                // ledger's own scopes. The identity service grants only those the user's role allows, so asking for the
+                // admin ones is harmless: only the admin role receives ledger:admin (every account) and users:admin
+                // (create sign-in accounts from the "New account" dialog).
                 "scope", "openid profile email offline_access accounts:read accounts:write transfers:read transfers:write "
-                        + "ledger:admin");
+                        + "ledger:admin users:admin");
     }
 
     @GetMapping("/ui-config")

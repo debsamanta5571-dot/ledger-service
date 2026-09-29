@@ -25,7 +25,7 @@ class TransferControllerIT extends AbstractIntegrationTest {
 
         postTransfer(newKey(), from, to, 300)
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", matchesPattern("/accounts/[0-9a-f-]{36}/statement")))
+                .andExpect(header().string("Location", matchesPattern("/accounts/[0-9a-f-]{36}/statements")))
                 .andExpect(jsonPath("$.transactionId").exists())
                 .andExpect(jsonPath("$.amount").value(300))
                 .andExpect(jsonPath("$.currency").value("USD"))

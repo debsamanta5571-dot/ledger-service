@@ -17,7 +17,7 @@ Remove-Item -Recurse -Force src\main\resources\static -ErrorAction SilentlyConti
 Copy-Item -Recurse ui\dist src\main\resources\static
 
 Write-Host '3/4 Packaging the jar'
-mvn -B -q package -DskipTests
+mvn -B -q clean package -DskipTests
 if ($LASTEXITCODE -ne 0) { throw 'mvn package failed' }
 $jar = (Get-ChildItem target\ledger-service-*.jar | Where-Object { $_.Name -notlike '*original*' } | Select-Object -First 1).Name
 

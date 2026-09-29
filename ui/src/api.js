@@ -60,6 +60,30 @@ function safeJson(text) {
   }
 }
 
+/**
+ * Calls the identity service's own admin API with the signed-in user's token (only used to create sign-in accounts,
+ * which needs users:admin). Its validation errors come back as { errors: { field: [messages] } }.
+ */
+export function identityClient(identityUrl, auth) {
+  return {
+    async createUser(body) {
+      const res = await fetch(`${identityUrl}/api/users`, {
+        method: 'POST',
+        headers: { ...(await auth.headers()), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const fields = data?.errors && !Array.isArray(data.errors)
+          ? Object.entries(data.errors).map(([field, msgs]) => ({ field, message: [].concat(msgs).join(' ') }))
+          : undefined;
+        throw new ApiError(res.status, { ...data, title: data?.title ?? 'Could not create the sign-in account', errors: fields });
+      }
+      return data;
+    },
+  };
+}
+
 export function describeError(e) {
   if (!(e instanceof ApiError)) return e.message || 'Network error';
   const fieldErrors = e.problem?.errors?.map((f) => `${f.field}: ${f.message}`).join('; ');

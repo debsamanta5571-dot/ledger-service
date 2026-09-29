@@ -3,6 +3,7 @@ package com.ledger.account;
 import com.ledger.account.dto.AccountResponse;
 import com.ledger.account.dto.CreateAccountRequest;
 import com.ledger.api.Caller;
+import com.ledger.api.ForbiddenOperationException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -27,11 +28,24 @@ public class AccountService {
         this.accounts = accounts;
     }
 
+    /** Opens an account for the caller, or (admins only) for the user named in {@code ownerId}. */
     @Transactional
     public AccountResponse create(Caller caller, CreateAccountRequest req) {
+        boolean forSomeoneElse = req.ownerId() != null && !req.ownerId().equals(caller.id());
+        if (forSomeoneElse && !caller.admin()) {
+            throw new ForbiddenOperationException("Only an admin can open an account for someone else");
+        }
+        String owner = forSomeoneElse ? req.ownerId() : caller.id();
+        String ownerName = forSomeoneElse
+                ? (req.ownerName() == null || req.ownerName().isBlank() ? owner : req.ownerName().strip())
+                : caller.name();
         long overdraft = req.overdraftLimit() == null ? 0L : req.overdraftLimit();
-        Account saved = accounts.insert(new Account(UUID.randomUUID(), caller.id(), caller.name(), req.name().strip(),
+        Account saved = accounts.insert(new Account(UUID.randomUUID(), owner, ownerName, req.name().strip(),
                 req.currency(), req.type(), overdraft, Instant.now(), null));
+        if (forSomeoneElse) {
+            log.info("Admin {} ({}) opened account {} for {} ({})", caller.id(), caller.name(), saved.id(), owner,
+                    ownerName);
+        }
         return AccountResponse.of(saved, 0L, 0L);
     }
 

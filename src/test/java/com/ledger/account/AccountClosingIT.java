@@ -41,7 +41,7 @@ class AccountClosingIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.balance").value(0));
         mvc.perform(get("/accounts?limit=100")).andExpect(jsonPath("$[*].id", not(hasItem(acct.toString()))));
         mvc.perform(get("/accounts?limit=100&includeClosed=true")).andExpect(jsonPath("$[*].id", hasItem(acct.toString())));
-        mvc.perform(get("/accounts/" + acct + "/statement"))
+        mvc.perform(get("/accounts/" + acct + "/statements"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(2));
         assertThat(entryCount(acct)).as("closing deletes nothing").isEqualTo(2);

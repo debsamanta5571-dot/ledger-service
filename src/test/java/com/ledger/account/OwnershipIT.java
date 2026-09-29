@@ -73,7 +73,7 @@ class OwnershipIT extends AbstractIntegrationTest {
         mvc.perform(get("/accounts?limit=100")).andExpect(jsonPath("$[*].id", hasItem(alicesAccount.toString())));
         mvc.perform(get("/accounts/" + alicesAccount)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.balance").value(1_000));
-        mvc.perform(get("/accounts/" + alicesAccount + "/statement")).andExpect(status().isOk());
+        mvc.perform(get("/accounts/" + alicesAccount + "/statements")).andExpect(status().isOk());
     }
 
     @Test
@@ -84,7 +84,7 @@ class OwnershipIT extends AbstractIntegrationTest {
         asMallory(get("/accounts/" + alicesAccount))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.type").value("urn:ledger:problem:account-not-found"));
-        asMallory(get("/accounts/" + alicesAccount + "/statement")).andExpect(status().isNotFound());
+        asMallory(get("/accounts/" + alicesAccount + "/statements")).andExpect(status().isNotFound());
     }
 
     @Test

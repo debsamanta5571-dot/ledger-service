@@ -183,3 +183,60 @@ button.link {
   border-radius: 6px;
   justify-content: space-between;
 }
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #8884;
+}
+.section-head h2 {
+  border-bottom: none;
+}
+dialog.modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 20px 24px;
+  border: 1px solid #8886;
+  border-radius: 10px;
+  background: Canvas;
+  color: CanvasText;
+}
+dialog.modal::backdrop {
+  background: #0008;
+}
+dialog.modal h2 {
+  margin-top: 0;
+}
+dialog.modal fieldset {
+  border: 1px solid #8884;
+  border-radius: 8px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+}
+dialog.modal fieldset:disabled {
+  opacity: 0.6;
+}
+dialog.modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+dialog.modal label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+dialog.modal .row label {
+  margin: 0;
+}
+dialog.modal .secret input {
+  flex: 1;
+}
+.actions-row {
+  justify-content: flex-end;
+}
+.warning {
+  color: #d29922;
+}

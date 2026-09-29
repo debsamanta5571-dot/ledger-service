@@ -63,7 +63,7 @@ class AuthAndRateLimitIT extends AbstractIntegrationTest {
     void everyBusinessEndpointRejectsAnonymousCalls() throws Exception {
         MockMvc plain = plainMvc();
         plain.perform(get("/accounts/" + UUID.randomUUID())).andExpect(status().isUnauthorized());
-        plain.perform(get("/accounts/" + UUID.randomUUID() + "/statement")).andExpect(status().isUnauthorized());
+        plain.perform(get("/accounts/" + UUID.randomUUID() + "/statements")).andExpect(status().isUnauthorized());
         plain.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/accounts")
                 .contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isUnauthorized());
         plain.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/transfers")

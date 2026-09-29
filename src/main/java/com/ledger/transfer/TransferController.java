@@ -49,7 +49,7 @@ public class TransferController {
         TransferResult result = service.transfer(Caller.of(caller), idempotencyKey, request);
 
         ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatusCode.valueOf(result.status()))
-                .location(URI.create("/accounts/" + result.body().fromAccountId() + "/statement"));
+                .location(URI.create("/accounts/" + result.body().fromAccountId() + "/statements"));
         if (result.replayed()) {
             builder.header("Idempotent-Replayed", "true");
         }

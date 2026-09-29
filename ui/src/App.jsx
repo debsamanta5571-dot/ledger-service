@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api, apiKeyCredential, describeError, oauthCredential, publicGet } from './api.js';
+import { api, apiKeyCredential, describeError, identityClient, oauthCredential, publicGet } from './api.js';
 import { isCallback, OAuthSession } from './auth.js';
 import AccountsPanel from './AccountsPanel.jsx';
 import TransferPanel from './TransferPanel.jsx';
@@ -123,12 +123,12 @@ export default function App() {
   async function signIn() {
     setError(null);
     setSigningIn(true);
-    save(MODE_STORAGE, 'oauth');
+    // Deliberately NOT remembering "signed in" yet: that happens only after the callback succeeds. Remembering it
+    // here made every later visit bounce straight back to the login page if the user abandoned it.
     try {
       await new OAuthSession(config).login();
     } catch (e) {
       setSigningIn(false);
-      save(MODE_STORAGE, '');
       setError(e.message);
     }
   }
@@ -158,6 +158,12 @@ export default function App() {
   // Admins (ledger:admin, granted only to the identity service's admin role) see and act on every account. The
   // server enforces this; the page only adapts its display.
   const isAdmin = !!user?.scopes.includes('ledger:admin');
+  // Creating sign-in accounts is the identity service's users:admin power (admins only), called directly from here.
+  const canCreateUsers = !!user?.scopes.includes('users:admin');
+  const identity = useMemo(
+    () => (config && auth?.kind === 'oauth' ? identityClient(config.identityUrl, auth) : null),
+    [config, auth],
+  );
 
   return (
     <main>
@@ -231,6 +237,8 @@ export default function App() {
         <>
           <AccountsPanel
             auth={auth}
+            identity={identity}
+            canCreateUsers={canCreateUsers}
             isAdmin={isAdmin}
             me={user?.sub ? `user:${user.sub}` : null}
             accounts={accounts}

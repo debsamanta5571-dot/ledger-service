@@ -28,7 +28,7 @@ export default function StatementPanel({ auth, isAdmin, accounts, accountId, onA
     if (to) params.set('to', to);
     const seq = ++requestSeq.current;
     try {
-      const { data } = await api(auth, `/accounts/${accountId}/statement?${params}`);
+      const { data } = await api(auth, `/accounts/${accountId}/statements?${params}`);
       if (seq !== requestSeq.current) return; // a newer request superseded this one
       setStatement(data);
       setError(null);
@@ -57,7 +57,7 @@ export default function StatementPanel({ auth, isAdmin, accounts, accountId, onA
 
   return (
     <section id="statement">
-      <h2>Statement</h2>
+      <h2>Statements</h2>
       <div className="row">
         <select value={accountId} onChange={changeFilter(onAccountChange)} aria-label="Account">
           <option value="">Account…</option>

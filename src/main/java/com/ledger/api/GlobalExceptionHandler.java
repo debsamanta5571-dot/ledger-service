@@ -86,6 +86,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.CONFLICT, "idempotency-key-reuse", "Idempotency key reused", e.getMessage());
     }
 
+    @ExceptionHandler(ForbiddenOperationException.class)
+    ProblemDetail forbiddenOperation(ForbiddenOperationException e) {
+        return problem(HttpStatus.FORBIDDEN, "forbidden-operation", "Not allowed", e.getMessage());
+    }
+
+    @ExceptionHandler(ApiKeyController.NotFoundException.class)
+    ProblemDetail apiKeyNotFound(ApiKeyController.NotFoundException e) {
+        return problem(HttpStatus.NOT_FOUND, "api-key-not-found", "API key not found", e.getMessage());
+    }
+
     @ExceptionHandler(InvalidRequestException.class)
     ProblemDetail invalidRequest(InvalidRequestException e) {
         return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", e.getMessage());

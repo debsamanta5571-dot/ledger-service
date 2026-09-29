@@ -68,7 +68,7 @@ class AdminIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ownerId").value(org.hamcrest.Matchers.startsWith("user:ursula-")))
                 .andExpect(jsonPath("$.balance").value(1_000));
-        as(admin, get("/accounts/" + usersAccount + "/statement")).andExpect(status().isOk());
+        as(admin, get("/accounts/" + usersAccount + "/statements")).andExpect(status().isOk());
     }
 
     @Test
@@ -103,7 +103,7 @@ class AdminIT extends AbstractIntegrationTest {
 
         assertThat(normalBalance(usersAccount)).isEqualTo(750);
         // The account owner can see that an admin, by name, moved their money.
-        as(user, get("/accounts/" + usersAccount + "/statement"))
+        as(user, get("/accounts/" + usersAccount + "/statements"))
                 .andExpect(jsonPath("$.entries[-1:].initiatedBy", hasItem("Rita Root")))
                 .andExpect(jsonPath("$.entries[-1:].description", hasItem("correction")));
     }
@@ -115,7 +115,7 @@ class AdminIT extends AbstractIntegrationTest {
                         .content("{\"fromAccountId\":\"%s\",\"toAccountId\":\"%s\",\"amount\":10,\"currency\":\"USD\"}"
                                 .formatted(usersAccount, destination)))
                 .andExpect(status().isCreated());
-        as(user, get("/accounts/" + usersAccount + "/statement"))
+        as(user, get("/accounts/" + usersAccount + "/statements"))
                 .andExpect(jsonPath("$.entries[-1:].initiatedBy", hasItem("Ursula User")));
     }
 

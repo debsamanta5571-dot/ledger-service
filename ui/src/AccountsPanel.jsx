@@ -1,35 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, describeError } from './api.js';
-import { formatMinor, parseMajor } from './money.js';
+import { formatMinor } from './money.js';
+import NewAccountDialog from './NewAccountDialog.jsx';
 
-export default function AccountsPanel({ auth, isAdmin, me, accounts, onChanged, onViewStatement }) {
-  const [name, setName] = useState('');
-  const [currency, setCurrency] = useState('USD');
-  const [type, setType] = useState('ASSET');
-  const [overdraft, setOverdraft] = useState('0');
+export default function AccountsPanel({ auth, identity, canCreateUsers, isAdmin, me, accounts, onChanged, onViewStatement }) {
   const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null);
-
-  async function create(e) {
-    e.preventDefault();
-    const overdraftLimit = parseMajor(overdraft);
-    if (overdraftLimit === null) {
-      setError('Overdraft limit must be an amount like 100 or 100.50');
-      return;
-    }
-    setBusy(true);
-    try {
-      await api(auth, '/accounts', { method: 'POST', body: { name, currency, type, overdraftLimit } });
-      setName('');
-      setError(null);
-      await onChanged();
-    } catch (err) {
-      setError(describeError(err));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   async function run(account, { confirmText, path }) {
     if (!window.confirm(confirmText)) return;
@@ -59,30 +36,20 @@ export default function AccountsPanel({ auth, isAdmin, me, accounts, onChanged, 
 
   return (
     <section>
-      <h2>Accounts</h2>
-      <form onSubmit={create} className="row">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required />
-        <input
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-          maxLength={3}
-          size={4}
-          aria-label="Currency"
-          required
-        />
-        <select value={type} onChange={(e) => setType(e.target.value)} aria-label="Type">
-          <option>ASSET</option>
-          <option>LIABILITY</option>
-        </select>
-        <input
-          value={overdraft}
-          onChange={(e) => setOverdraft(e.target.value)}
-          size={8}
-          aria-label="Overdraft limit"
-          title="Overdraft limit"
-        />
-        <button disabled={busy}>Create</button>
-      </form>
+      <div className="section-head">
+        <h2>Accounts</h2>
+        <button type="button" className="primary" onClick={() => setDialogOpen(true)}>
+          + New account
+        </button>
+      </div>
+      <NewAccountDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        auth={auth}
+        identity={identity}
+        canCreateUsers={canCreateUsers}
+        onCreated={onChanged}
+      />
       {error && <p className="error">{error}</p>}
 
       <table>
@@ -186,7 +153,7 @@ function AccountActions({ account, busy, onViewStatement, onClose, onDelete }) {
       <summary aria-label={`Actions for ${account.name}`}>{busy ? 'Working…' : 'Actions'}</summary>
       <div className="menu" role="menu">
         <button type="button" role="menuitem" onClick={pick(onViewStatement)}>
-          View statement
+          View statements
         </button>
         <button type="button" role="menuitem" onClick={copyId}>
           {copied ? 'Copied!' : 'Copy account ID'}

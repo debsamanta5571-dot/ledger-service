@@ -26,9 +26,8 @@ public record Caller(String id, String name, boolean admin) {
                     jwt.getToken().getClaimAsString("email"), jwt.getName());
             return new Caller("user:" + jwt.getName(), name, admin);
         }
-        // API keys: the principal is the key id; ApiKeyAuthFilter puts the key's name in the details.
-        Object details = authentication.getDetails();
-        String name = details instanceof String keyName ? "API key '" + keyName + "'" : "API key";
+        // API keys: the principal is who the key acts as; ApiKeyAuthFilter puts a readable label in the details.
+        String name = authentication.getDetails() instanceof String label ? label : "API key";
         return new Caller(authentication.getName(), name, admin);
     }
 

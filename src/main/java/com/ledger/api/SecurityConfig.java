@@ -51,8 +51,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/accounts", "/accounts/*").hasAuthority("SCOPE_accounts:read")
                         .requestMatchers(HttpMethod.POST, "/accounts").hasAuthority("SCOPE_accounts:write")
                         .requestMatchers(HttpMethod.DELETE, "/accounts/*").hasAuthority("SCOPE_accounts:write")
-                        .requestMatchers(HttpMethod.GET, "/accounts/*/statement").hasAuthority("SCOPE_transfers:read")
+                        .requestMatchers(HttpMethod.GET, "/accounts/*/statements").hasAuthority("SCOPE_transfers:read")
                         .requestMatchers(HttpMethod.POST, "/transfers").hasAuthority("SCOPE_transfers:write")
+                        .requestMatchers(HttpMethod.GET, "/api-keys").hasAuthority("SCOPE_accounts:read")
+                        .requestMatchers(HttpMethod.POST, "/api-keys").hasAuthority("SCOPE_accounts:write")
+                        .requestMatchers(HttpMethod.DELETE, "/api-keys/*").hasAuthority("SCOPE_accounts:write")
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(Customizer.withDefaults())

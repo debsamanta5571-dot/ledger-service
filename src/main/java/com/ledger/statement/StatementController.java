@@ -21,10 +21,10 @@ public class StatementController {
         this.service = service;
     }
 
-    @Operation(summary = "Account statement",
+    @Operation(summary = "Account statements",
             description = "Entries within an inclusive UTC date range with the running balance after each one, "
                     + "paginated (page is zero-based, size 1-100).")
-    @GetMapping("/accounts/{id}/statement")
+    @GetMapping("/accounts/{id}/statements")
     public StatementResponse statement(
             Authentication caller,
             @PathVariable UUID id,
