@@ -49,7 +49,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         // Public: health, API docs, and the bundled UI's static files (the UI itself sends the key on API calls).
         return path.equals("/health") || path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")
                 || path.equals("/") || path.equals("/index.html") || path.startsWith("/assets/")
-                || path.equals("/favicon.ico");
+                || path.equals("/favicon.ico") || path.equals("/ui-config");
     }
 
     @Override

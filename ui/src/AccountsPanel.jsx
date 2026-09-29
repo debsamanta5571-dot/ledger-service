@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, describeError } from './api.js';
 import { formatMinor, parseMajor } from './money.js';
 
-export default function AccountsPanel({ apiKey, accounts, onChanged, onViewStatement }) {
+export default function AccountsPanel({ auth, accounts, onChanged, onViewStatement }) {
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [type, setType] = useState('ASSET');
@@ -20,7 +20,7 @@ export default function AccountsPanel({ apiKey, accounts, onChanged, onViewState
     }
     setBusy(true);
     try {
-      await api(apiKey, '/accounts', { method: 'POST', body: { name, currency, type, overdraftLimit } });
+      await api(auth, '/accounts', { method: 'POST', body: { name, currency, type, overdraftLimit } });
       setName('');
       setError(null);
       await onChanged();
@@ -35,7 +35,7 @@ export default function AccountsPanel({ apiKey, accounts, onChanged, onViewState
     if (!window.confirm(confirmText)) return;
     setPending(account.id);
     try {
-      await api(apiKey, path, { method: 'DELETE' });
+      await api(auth, path, { method: 'DELETE' });
       setError(null);
       await onChanged();
     } catch (err) {

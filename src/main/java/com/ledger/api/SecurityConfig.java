@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
-                                "/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
+                                "/", "/index.html", "/assets/**", "/favicon.ico", "/ui-config").permitAll()
                         // Boot renders unhandled errors by forwarding to /error. Denying that forward turned every
                         // server error into a misleading 401/403, so let error rendering through.
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()

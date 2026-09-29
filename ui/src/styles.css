@@ -133,3 +133,43 @@ details.actions .menu button small {
 details.actions .menu .danger:not(:disabled) {
   color: #c62828;
 }
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.topbar .who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.signin {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+button.primary {
+  padding: 8px 20px;
+  font-weight: 600;
+  background: #1f6feb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  opacity: 0.8;
+}

@@ -106,6 +106,34 @@ LEDGER_BOOTSTRAP_API_KEY=dev-local-key mvn spring-boot:run
 cd ui && npm install && npm run dev           # http://localhost:5173, proxies /api to :8080
 ```
 
+### Signing in (with the identity service)
+
+The web page has a **Sign in** button that uses the companion
+[identity service](../identity-service) (OAuth 2.0 authorization code + PKCE). Run it next to the ledger:
+
+```bash
+cd ../identity-service && ./scripts/dev-secrets.sh    # once: generates .env, including the local admin login
+docker compose up -d identity-api                     # http://localhost:5001
+```
+
+The identity service lists the ledger page as the `ledger-ui` client, with redirect URIs `http://127.0.0.1:8080/`,
+`http://localhost:8080/` and `http://localhost:5173/`. Sign in with the admin account from its `.env`, or any user
+created in its admin console. What you may do is the user's role: `operator` and `admin` can create accounts and
+transfer, `auditor` can only read. Each signed-in user has their own accounts, separate from the API key's.
+**Use an API key instead** still works for scripts and for running without the identity service.
+
+How the page handles it:
+- **No secret in the browser.** A public client proves itself with PKCE: a random verifier is hashed into the
+  authorization request, and only this browser can present the original when exchanging the code.
+- **Tokens stay in memory.** Nothing that grants access is written to storage, where an XSS bug could read it.
+  After a reload the page repeats the sign-in redirect, which the identity service answers instantly from its own
+  session, so there is no second password prompt.
+- **One refresh at a time.** The identity service treats a reused refresh token as theft and ends the session, so
+  parallel requests share a single refresh (unit-tested with five concurrent callers).
+- **Sign out** revokes the refresh token and ends the identity-service session.
+- The page learns where to sign in from `GET /ui-config`, so the identity service's address is configured once, on
+  the server (`IDENTITY_ISSUER`).
+
 ### Windows desktop build (Ledger.exe)
 
 ```powershell

@@ -4,7 +4,7 @@ import { formatMinor } from './money.js';
 
 const PAGE_SIZE = 10;
 
-export default function StatementPanel({ apiKey, accounts, accountId, onAccountChange }) {
+export default function StatementPanel({ auth, accounts, accountId, onAccountChange }) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(0);
@@ -27,7 +27,7 @@ export default function StatementPanel({ apiKey, accounts, accountId, onAccountC
     if (to) params.set('to', to);
     const seq = ++requestSeq.current;
     try {
-      const { data } = await api(apiKey, `/accounts/${accountId}/statement?${params}`);
+      const { data } = await api(auth, `/accounts/${accountId}/statement?${params}`);
       if (seq !== requestSeq.current) return; // a newer request superseded this one
       setStatement(data);
       setError(null);
@@ -36,7 +36,7 @@ export default function StatementPanel({ apiKey, accounts, accountId, onAccountC
       setStatement(null);
       setError(describeError(e));
     }
-  }, [apiKey, accountId, from, to, page]);
+  }, [auth, accountId, from, to, page]);
 
   useEffect(() => {
     load();

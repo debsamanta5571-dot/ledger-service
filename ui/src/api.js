@@ -10,11 +10,37 @@ export class ApiError extends Error {
   }
 }
 
-export async function api(apiKey, path, { method = 'GET', body, headers = {} } = {}) {
+/**
+ * How to authenticate. Either a signed-in user (Bearer access token from the identity service) or an API key.
+ * `headers()` is async because a user's token may need refreshing first.
+ */
+export function apiKeyCredential(key) {
+  return { kind: 'apiKey', headers: async () => ({ 'X-API-Key': key }) };
+}
+
+export function oauthCredential(session) {
+  return {
+    kind: 'oauth',
+    headers: async () => {
+      const token = await session.getAccessToken();
+      if (!token) throw new ApiError(401, { title: 'Signed out', detail: 'Your sign-in has expired. Please sign in again.' });
+      return { Authorization: `Bearer ${token}` };
+    },
+  };
+}
+
+/** Fetches public, unauthenticated endpoints (the sign-in configuration). */
+export async function publicGet(path) {
+  const res = await fetch(`${BASE}${path}`);
+  if (!res.ok) throw new ApiError(res.status, null);
+  return res.json();
+}
+
+export async function api(auth, path, { method = 'GET', body, headers = {} } = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
-      'X-API-Key': apiKey,
+      ...(await auth.headers()),
       ...(body ? { 'Content-Type': 'application/json' } : {}),
       ...headers,
     },

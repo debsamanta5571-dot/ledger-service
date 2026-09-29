@@ -37,8 +37,12 @@ ledger:
     # Bearer tokens issued by the identity service. Keys are fetched from the JWKS endpoint (lazily, cached).
     jwt:
       jwk-set-uri: ${IDENTITY_JWKS_URI:http://localhost:5001/.well-known/jwks}
-      issuer: ${IDENTITY_ISSUER:https://localhost:5001/}
+      # Must equal the identity service's Server__Issuer exactly. Local stack: plain http on localhost:5001.
+      issuer: ${IDENTITY_ISSUER:http://localhost:5001/}
       audience: ledger-api
+    ui:
+      # The identity-service OAuth client used by the bundled web page (public client, PKCE).
+      client-id: ${LEDGER_UI_CLIENT_ID:ledger-ui}
   jobs:
     daily-balances:
       enabled: true

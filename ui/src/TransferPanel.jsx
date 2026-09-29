@@ -5,7 +5,7 @@ import { newIdempotencyKey } from './ids.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export default function TransferPanel({ apiKey, accounts: allAccounts, onChanged }) {
+export default function TransferPanel({ auth, accounts: allAccounts, onChanged }) {
   const accounts = allAccounts.filter((a) => !a.closedAt);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -40,7 +40,7 @@ export default function TransferPanel({ apiKey, accounts: allAccounts, onChanged
     }
     setBusy(true);
     try {
-      const { data, replayed } = await api(apiKey, '/transfers', {
+      const { data, replayed } = await api(auth, '/transfers', {
         method: 'POST',
         headers: { 'Idempotency-Key': idempotencyKey },
         body: {
