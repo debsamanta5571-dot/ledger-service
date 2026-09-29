@@ -21,6 +21,8 @@
         <java.version>21</java.version>
         <!-- Newer Docker Engines (29+) reject the old API version older Testcontainers request. -->
         <testcontainers.version>1.21.4</testcontainers.version>
+        <!-- Trivy: pgjdbc 42.7.5 (Boot default) has HIGH CVEs (CVE-2025-49146, CVE-2026-42198, CVE-2026-54291). -->
+        <postgresql.version>42.7.13</postgresql.version>
     </properties>
 
     <dependencies>
