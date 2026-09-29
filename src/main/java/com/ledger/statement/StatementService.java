@@ -29,7 +29,8 @@ public class StatementService {
 
     /** Both dates are inclusive, interpreted as UTC calendar days. Defaults: from = 1970-01-01, to = today. */
     @Transactional(readOnly = true)
-    public StatementResponse statement(UUID accountId, LocalDate from, LocalDate to, int page, int size) {
+    public StatementResponse statement(String owner, UUID accountId, LocalDate from, LocalDate to, int page,
+                                       int size) {
         LocalDate effectiveFrom = from == null ? EARLIEST : from;
         LocalDate effectiveTo = to == null ? LocalDate.now(ZoneOffset.UTC) : to;
         if (effectiveFrom.isAfter(effectiveTo)) {
@@ -42,7 +43,7 @@ public class StatementService {
             throw new InvalidRequestException("'size' must be between 1 and " + MAX_PAGE_SIZE);
         }
 
-        Account account = accounts.findById(accountId).orElseThrow(() -> new AccountNotFoundException(accountId));
+        Account account = accounts.findOwned(accountId, owner).orElseThrow(() -> new AccountNotFoundException(accountId));
         OffsetDateTime start = effectiveFrom.atStartOfDay().atOffset(ZoneOffset.UTC);
         OffsetDateTime endExclusive = effectiveTo.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
 

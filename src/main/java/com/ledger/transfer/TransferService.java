@@ -41,12 +41,13 @@ public class TransferService {
      */
     @Transactional
     public TransferResult transfer(String clientId, String idempotencyKey, TransferRequest req) {
+        // clientId is the caller (com.ledger.api.Caller): it scopes idempotency keys and must own the source account.
         String hash = RequestHasher.hash(req);
         if (!idempotency.claim(clientId, idempotencyKey, hash)) {
             return replay(clientId, idempotencyKey, hash);
         }
 
-        TransferResponse response = post(req);
+        TransferResponse response = post(clientId, req);
 
         idempotency.complete(clientId, idempotencyKey, HttpStatus.CREATED.value(), toJson(response));
         return new TransferResult(HttpStatus.CREATED.value(), response, false);
@@ -65,7 +66,7 @@ public class TransferService {
         return new TransferResult(stored.status(), fromJson(stored.body()), true);
     }
 
-    private TransferResponse post(TransferRequest req) {
+    private TransferResponse post(String owner, TransferRequest req) {
         if (req.fromAccountId().equals(req.toAccountId())) {
             throw new InvalidTransferException("Source and destination accounts must differ");
         }
@@ -73,10 +74,12 @@ public class TransferService {
         // Lock only the account being drained. It is the only balance this transfer can push below its
         // limit. One lock per transaction means no lock ordering to get wrong; NO KEY UPDATE (see the repository)
         // keeps the destination's foreign-key check from blocking, which is what avoids A<->B deadlocks.
-        Account from = accounts.findByIdForUpdate(req.fromAccountId())
+        // Only the owner can send from an account; someone else's looks exactly like a missing one (404).
+        Account from = accounts.findOwnedForTransferSource(req.fromAccountId(), owner)
                 .orElseThrow(() -> new AccountNotFoundException(req.fromAccountId()));
-        // KEY SHARE on the destination: it cannot be closed while this transfer is in flight (see the repository).
-        Account to = accounts.findByIdForKeyShare(req.toAccountId())
+        // The destination may be anyone's (paying another customer). KEY SHARE: it cannot be closed or deleted while
+        // this transfer is in flight (see the repository).
+        Account to = accounts.findForTransferDestination(req.toAccountId())
                 .orElseThrow(() -> new AccountNotFoundException(req.toAccountId()));
 
         // Checked after both locks are held, so a concurrent close cannot slip in between check and posting.

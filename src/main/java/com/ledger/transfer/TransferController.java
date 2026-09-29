@@ -1,5 +1,6 @@
 package com.ledger.transfer;
 
+import com.ledger.api.Caller;
 import com.ledger.api.InvalidRequestException;
 import com.ledger.transfer.dto.TransferRequest;
 import com.ledger.transfer.dto.TransferResponse;
@@ -10,7 +11,6 @@ import java.net.URI;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -46,7 +46,7 @@ public class TransferController {
             throw new InvalidRequestException(
                     "Idempotency-Key must be between 1 and " + MAX_KEY_LENGTH + " characters");
         }
-        TransferResult result = service.transfer(callerId(caller), idempotencyKey, request);
+        TransferResult result = service.transfer(Caller.id(caller), idempotencyKey, request);
 
         ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatusCode.valueOf(result.status()))
                 .location(URI.create("/accounts/" + result.body().fromAccountId() + "/statement"));
@@ -56,11 +56,4 @@ public class TransferController {
         return builder.body(result.body());
     }
 
-    /**
-     * Idempotency keys are scoped per caller, so two callers may reuse the same key. An API key is identified by its
-     * id (unchanged from before, so existing records still match); a bearer token by its subject.
-     */
-    private static String callerId(Authentication caller) {
-        return caller instanceof JwtAuthenticationToken ? "user:" + caller.getName() : caller.getName();
-    }
 }

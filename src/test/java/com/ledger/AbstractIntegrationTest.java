@@ -64,11 +64,26 @@ public abstract class AbstractIntegrationTest {
         return MockMvcBuilders.webAppContextSetup(webContext).apply(SecurityMockMvcConfigurers.springSecurity()).build();
     }
 
+    /** Owner id of the bootstrap API key, i.e. the caller behind the autowired {@code mvc}. */
+    protected String apiKeyOwner() {
+        return jdbc.queryForObject("SELECT id::text FROM api_keys WHERE name = 'bootstrap' AND active", String.class);
+    }
+
+    /** Creates an account owned by the default test caller (the bootstrap API key). */
     protected UUID newAccount(AccountType type, String currency, long overdraftLimit) {
+        return newAccountOwnedBy(apiKeyOwner(), type, currency, overdraftLimit);
+    }
+
+    protected UUID newAccountOwnedBy(String owner, AccountType type, String currency, long overdraftLimit) {
         UUID id = UUID.randomUUID();
-        jdbc.update("INSERT INTO accounts (id, name, currency, type, overdraft_limit) VALUES (?, ?, ?, ?, ?)",
-                id, "test-" + id, currency, type.name(), overdraftLimit);
+        jdbc.update("""
+                INSERT INTO accounts (id, owner_id, name, currency, type, overdraft_limit) VALUES (?, ?, ?, ?, ?, ?)
+                """, id, owner, "test-" + id, currency, type.name(), overdraftLimit);
         return id;
+    }
+
+    protected UUID newAccountOwnedBy(String owner, AccountType type) {
+        return newAccountOwnedBy(owner, type, "USD", 0);
     }
 
     protected UUID newAccount(AccountType type) {

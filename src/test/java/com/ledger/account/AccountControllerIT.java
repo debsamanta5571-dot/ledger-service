@@ -134,7 +134,8 @@ class AccountControllerIT extends AbstractIntegrationTest {
         String id = createAccount("""
                 {"name":"Listed","currency":"USD","type":"ASSET"}""");
         UUID counter = UUID.randomUUID();
-        jdbc.update("INSERT INTO accounts (id, name, currency, type) VALUES (?, 'counter', 'USD', 'LIABILITY')", counter);
+        jdbc.update("INSERT INTO accounts (id, owner_id, name, currency, type) VALUES (?, ?, 'counter', 'USD', 'LIABILITY')",
+                counter, apiKeyOwner());
         UUID tx = UUID.randomUUID();
         jdbc.update("INSERT INTO transactions (id) VALUES (?)", tx);
         insertEntry(tx, id, "DEBIT", 250);

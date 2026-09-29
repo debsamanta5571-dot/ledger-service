@@ -183,11 +183,12 @@ An error response is `application/problem+json`, for example:
 | `DELETE /accounts/{id}` | **closes** the account: 204 (also if already closed), 409 if the balance is not zero |
 | `DELETE /accounts/{id}?permanent=true` | deletes it for good: 204 only if it has **never** had a transaction, otherwise 409 |
 | `GET /accounts/{id}/statement` | `from`, `to` (inclusive UTC dates), `page`, `size` ≤ 100; opening/closing balance and a running balance per entry |
-| `POST /transfers` | requires `Idempotency-Key`; 201 / 404 / 409 / 422 |
+| `POST /transfers` | requires `Idempotency-Key`; send from your own account to anyone's; 201 / 404 / 409 / 422 |
 | `GET /health` | database connectivity; no auth |
 | `/swagger-ui`, `/v3/api-docs` | OpenAPI; no auth |
 
-Every endpoint except health and the docs requires `X-API-Key`. Responses carry `X-RateLimit-Limit` and
+Every endpoint except health and the docs requires `X-API-Key` (or a bearer token), and callers only ever see
+their own accounts. Responses carry `X-RateLimit-Limit` and
 `X-RateLimit-Remaining`; over the limit you get `429` with `Retry-After`.
 
 ## Design decisions and trade-offs
@@ -241,6 +242,19 @@ and the response is stored as the last. Because it is all one transaction:
 The request is hashed from the *parsed* body (not raw bytes), so whitespace or field-order changes do not turn a
 retry into a spurious `409`. Keys are scoped per API key, so one client can never replay another's response.
 Not implemented: expiry of old keys (a purge job would be needed at scale).
+
+### Account ownership
+Scopes say *what kind* of thing a caller may do; ownership says *to which accounts*. Every account stores the caller
+that created it: an API key's id, or `user:<subject>` for an identity-service token. Everything that reads or
+changes an account (get, list, statement, close, delete, and the *source* of a transfer) matches on id **and** owner
+in the SQL itself, so another customer's row is never even locked. The *destination* of a transfer may belong to
+anyone, as at a real bank: you can pay into an account you cannot see.
+
+Someone else's account returns **404, never 403**. A 403 would confirm that the id exists, which lets an attacker
+probe for valid account numbers; `OwnershipIT` checks the two responses are byte-for-byte identical apart from the
+id. Because an API key's id is the owner, rotating a key rewrites the secret on the same row, keeping the id, so a
+rotation cannot orphan accounts. Accounts created before ownership existed were assigned to the bootstrap key by
+migration V6.
 
 ### Removing an account: close it, or delete it only if it was never used
 Entries are append-only, so an account is never deleted: that would break its entries' foreign keys or erase its
@@ -333,10 +347,8 @@ dropped: it is either a bad test or a real bug. See `scripts/llm-testgen/`.
 
 ## Known limitations / next steps
 
-- **No per-account ownership.** Authorization is by scope only: any caller with `transfers:write` can move money
-  out of *any* account, and any caller with `accounts:read` can list every account. A real ledger would tie
-  accounts to an owner (for example the token's subject or an organisation claim) and check it on every request.
-  This is the largest gap between this project and production.
+- Ownership is per caller (one API key, or one identity-service user). There is no sharing, no joint accounts and
+  no organisation-level access; those would need an owner *group* rather than a single owner id.
 - No deposit/withdrawal against the outside world; fund accounts through an overdraft-enabled treasury account.
 - Single currency per transfer; no FX. `ASSET`/`LIABILITY` only (no equity/revenue/expense).
 - Statement pagination is offset-based; very large date ranges would want keyset pagination or checkpoints.

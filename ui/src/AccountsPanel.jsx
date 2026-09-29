@@ -145,6 +145,18 @@ function AccountActions({ account, busy, onViewStatement, onClose, onDelete }) {
     account.entryCount > 0 ? `has ${account.entryCount} ledger entries, which are kept forever` : null;
 
   const ref = useRef(null);
+  const [copied, setCopied] = useState(false);
+
+  async function copyId() {
+    try {
+      await navigator.clipboard.writeText(account.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard needs a secure context (localhost counts); fall back to showing the id.
+      window.prompt('Account ID', account.id);
+    }
+  }
   // <details> does not close itself on an outside click or Escape; do that here.
   useEffect(() => {
     const closeUnlessInside = (e) => {
@@ -173,6 +185,10 @@ function AccountActions({ account, busy, onViewStatement, onClose, onDelete }) {
       <div className="menu" role="menu">
         <button type="button" role="menuitem" onClick={pick(onViewStatement)}>
           View statement
+        </button>
+        <button type="button" role="menuitem" onClick={copyId}>
+          {copied ? 'Copied!' : 'Copy account ID'}
+          <small>share it so others can pay into this account</small>
         </button>
         <button type="button" role="menuitem" onClick={pick(onClose)} disabled={busy || !!closeBlocked}>
           Close account

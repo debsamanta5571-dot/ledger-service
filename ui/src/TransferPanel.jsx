@@ -3,12 +3,16 @@ import { api, describeError } from './api.js';
 import { formatMinor, parseMajor } from './money.js';
 import { newIdempotencyKey } from './ids.js';
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function TransferPanel({ apiKey, accounts: allAccounts, onChanged }) {
   const accounts = allAccounts.filter((a) => !a.closedAt);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  // Paying someone else: their account is not in our list, so its id is typed (or pasted) in.
+  const [payeeId, setPayeeId] = useState('');
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
   // One key per logical transfer. It is reused if the user resubmits an unchanged form (say, after a network
@@ -17,15 +21,21 @@ export default function TransferPanel({ apiKey, accounts: allAccounts, onChanged
 
   useEffect(() => {
     setIdempotencyKey(newIdempotencyKey());
-  }, [from, to, amount, description]);
+  }, [from, to, payeeId, amount, description]);
 
   const source = accounts.find((a) => a.id === from);
+  const payingSomeoneElse = to === '__other__';
+  const destination = payingSomeoneElse ? payeeId.trim() : to;
 
   async function submit(e) {
     e.preventDefault();
     const minor = parseMajor(amount);
-    if (!source || !to || minor === null || minor === 0) {
+    if (!source || !destination || minor === null || minor === 0) {
       setMessage({ kind: 'error', text: 'Pick both accounts and enter a positive amount like 25 or 25.50' });
+      return;
+    }
+    if (payingSomeoneElse && !UUID.test(destination)) {
+      setMessage({ kind: 'error', text: 'That does not look like an account ID (use "Copy account ID" on theirs)' });
       return;
     }
     setBusy(true);
@@ -35,7 +45,7 @@ export default function TransferPanel({ apiKey, accounts: allAccounts, onChanged
         headers: { 'Idempotency-Key': idempotencyKey },
         body: {
           fromAccountId: from,
-          toAccountId: to,
+          toAccountId: destination,
           amount: minor,
           currency: source.currency,
           description: description || null,
@@ -78,7 +88,18 @@ export default function TransferPanel({ apiKey, accounts: allAccounts, onChanged
                 {a.name} ({a.currency})
               </option>
             ))}
+          <option value='__other__'>Someone else's account…</option>
         </select>
+        {payingSomeoneElse && (
+          <input
+            value={payeeId}
+            onChange={(e) => setPayeeId(e.target.value)}
+            placeholder="Their account ID"
+            size={38}
+            className="mono"
+            aria-label="Recipient account ID"
+          />
+        )}
         <input
           value={amount}
           onChange={(e) => setAmount(e.target.value)}

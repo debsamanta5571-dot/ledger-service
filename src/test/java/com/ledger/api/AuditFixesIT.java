@@ -20,7 +20,8 @@ class AuditFixesIT extends AbstractIntegrationTest {
     @Autowired PlatformTransactionManager transactionManager;
 
     private boolean isActive(String plaintext) {
-        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT active FROM api_keys WHERE key_hash = ?",
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM api_keys WHERE key_hash = ? AND active)",
                 Boolean.class, ApiKeyHasher.sha256Hex(plaintext)));
     }
 
@@ -31,14 +32,17 @@ class AuditFixesIT extends AbstractIntegrationTest {
         String second = "second-" + UUID.randomUUID();
 
         keys.replaceNamedKey(name, ApiKeyHasher.sha256Hex(first), 10);
+        UUID idBefore = keys.findActiveByHash(ApiKeyHasher.sha256Hex(first)).orElseThrow().id();
         keys.replaceNamedKey(name, ApiKeyHasher.sha256Hex(second), 20);
+        // The id is the caller's identity and owns its accounts, so rotation must keep it.
+        assertThat(keys.findActiveByHash(ApiKeyHasher.sha256Hex(second)).orElseThrow().id()).isEqualTo(idBefore);
 
         assertThat(isActive(first)).as("old key must stop working").isFalse();
         assertThat(isActive(second)).isTrue();
         assertThat(keys.findActiveByHash(ApiKeyHasher.sha256Hex(second))).get()
                 .extracting(ApiKey::rateLimitPerMinute).isEqualTo(20);
 
-        // Rotating back re-activates the original key rather than failing on the unique hash.
+        // Rotating back works too, still on the same key record.
         keys.replaceNamedKey(name, ApiKeyHasher.sha256Hex(first), 10);
         assertThat(isActive(first)).isTrue();
         assertThat(isActive(second)).isFalse();
@@ -47,11 +51,11 @@ class AuditFixesIT extends AbstractIntegrationTest {
     @Test
     void databaseRejectsOversizedNamesAndOverdrafts() {
         assertThatThrownBy(() -> jdbc.update(
-                "INSERT INTO accounts (id, name, currency, type) VALUES (?, ?, 'USD', 'ASSET')",
+                "INSERT INTO accounts (id, owner_id, name, currency, type) VALUES (?, 'raw-test', ?, 'USD', 'ASSET')",
                 UUID.randomUUID(), "x".repeat(201)))
                 .isInstanceOf(DataAccessException.class);
         assertThatThrownBy(() -> jdbc.update(
-                "INSERT INTO accounts (id, name, currency, type, overdraft_limit) VALUES (?, 'a', 'USD', 'ASSET', ?)",
+                "INSERT INTO accounts (id, owner_id, name, currency, type, overdraft_limit) VALUES (?, 'raw-test', 'a', 'USD', 'ASSET', ?)",
                 UUID.randomUUID(), 1_000_000_000_000_000L))
                 .isInstanceOf(DataAccessException.class);
     }

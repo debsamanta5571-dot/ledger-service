@@ -1,7 +1,9 @@
 package com.ledger.account;
 
 import com.ledger.account.dto.AccountResponse;
+import com.ledger.api.Caller;
 import com.ledger.api.InvalidRequestException;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RequestParam;
 import com.ledger.account.dto.CreateAccountRequest;
 import jakarta.validation.Valid;
@@ -27,18 +29,20 @@ public class AccountController {
     }
 
     @PostMapping
-    public ResponseEntity<AccountResponse> create(@Valid @RequestBody CreateAccountRequest request) {
-        AccountResponse created = service.create(request);
+    public ResponseEntity<AccountResponse> create(Authentication caller,
+                                                  @Valid @RequestBody CreateAccountRequest request) {
+        AccountResponse created = service.create(Caller.id(caller), request);
         return ResponseEntity.created(URI.create("/accounts/" + created.id())).body(created);
     }
 
     @GetMapping
-    public java.util.List<AccountResponse> list(@RequestParam(defaultValue = "50") int limit,
+    public java.util.List<AccountResponse> list(Authentication caller,
+                                                @RequestParam(defaultValue = "50") int limit,
                                                 @RequestParam(defaultValue = "false") boolean includeClosed) {
         if (limit < 1 || limit > 100) {
             throw new InvalidRequestException("'limit' must be between 1 and 100");
         }
-        return service.list(limit, includeClosed);
+        return service.list(Caller.id(caller), limit, includeClosed);
     }
 
     /**
@@ -49,17 +53,18 @@ public class AccountController {
      * transaction (409 otherwise, since its entries are append-only history). 404 if it does not exist.
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id, @RequestParam(defaultValue = "false") boolean permanent) {
+    public ResponseEntity<Void> delete(Authentication caller, @PathVariable UUID id,
+                                       @RequestParam(defaultValue = "false") boolean permanent) {
         if (permanent) {
-            service.deletePermanently(id);
+            service.deletePermanently(Caller.id(caller), id);
         } else {
-            service.close(id);
+            service.close(Caller.id(caller), id);
         }
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
-    public AccountResponse get(@PathVariable UUID id) {
-        return service.get(id);
+    public AccountResponse get(Authentication caller, @PathVariable UUID id) {
+        return service.get(Caller.id(caller), id);
     }
 }

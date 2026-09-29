@@ -101,14 +101,18 @@ class IdempotencyIT extends AbstractIntegrationTest {
         UUID to = newAccount(AccountType.ASSET);
         fund(from, AccountType.ASSET, 1000);
         String otherKey = "other-client-" + UUID.randomUUID();
+        UUID otherKeyId = UUID.randomUUID();
         jdbc.update("INSERT INTO api_keys (id, name, key_hash, rate_limit_per_minute) VALUES (?, 'other', ?, 1000)",
-                UUID.randomUUID(), ApiKeyHasher.sha256Hex(otherKey));
+                otherKeyId, ApiKeyHasher.sha256Hex(otherKey));
+        // The other client can only send from an account it owns; it may pay into ours.
+        UUID otherFrom = newAccountOwnedBy(otherKeyId.toString(), AccountType.ASSET);
+        fund(otherFrom, AccountType.ASSET, 1000);
         MockMvc plain = plainMvc();
         String sharedIdempotencyKey = newKey();
 
         postWithApiKey(plain, API_KEY, sharedIdempotencyKey, from, to, 100).andExpect(status().isCreated());
         // Same Idempotency-Key from a different client is a brand new request, not a replay or a 409.
-        postWithApiKey(plain, otherKey, sharedIdempotencyKey, from, to, 500)
+        postWithApiKey(plain, otherKey, sharedIdempotencyKey, otherFrom, to, 500)
                 .andExpect(status().isCreated())
                 .andExpect(header().doesNotExist("Idempotent-Replayed"));
 

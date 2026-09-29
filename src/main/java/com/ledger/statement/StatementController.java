@@ -1,6 +1,8 @@
 package com.ledger.statement;
 
+import com.ledger.api.Caller;
 import com.ledger.statement.dto.StatementResponse;
+import org.springframework.security.core.Authentication;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -24,11 +26,12 @@ public class StatementController {
                     + "paginated (page is zero-based, size 1-100).")
     @GetMapping("/accounts/{id}/statement")
     public StatementResponse statement(
+            Authentication caller,
             @PathVariable UUID id,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return service.statement(id, from, to, page, size);
+        return service.statement(Caller.id(caller), id, from, to, page, size);
     }
 }

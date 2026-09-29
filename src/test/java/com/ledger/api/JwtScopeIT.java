@@ -26,6 +26,9 @@ import org.springframework.test.web.servlet.ResultActions;
  */
 class JwtScopeIT extends AbstractIntegrationTest {
 
+    /** Owner id of the default test token's subject (see TestJwks.claims). */
+    private static final String TOKEN_OWNER = "user:11111111-1111-1111-1111-111111111111";
+
     private static String bearer(String token) {
         return "Bearer " + token;
     }
@@ -67,7 +70,7 @@ class JwtScopeIT extends AbstractIntegrationTest {
 
     @Test
     void transfersWriteAloneCanTransferButCannotReadAccounts() throws Exception {
-        UUID from = newAccount(AccountType.ASSET);
+        UUID from = newAccountOwnedBy(TOKEN_OWNER, AccountType.ASSET);
         UUID to = newAccount(AccountType.ASSET);
         fund(from, AccountType.ASSET, 1_000);
 
@@ -85,7 +88,7 @@ class JwtScopeIT extends AbstractIntegrationTest {
 
     @Test
     void statementNeedsTransfersRead() throws Exception {
-        UUID account = newAccount(AccountType.ASSET);
+        UUID account = newAccountOwnedBy(TOKEN_OWNER, AccountType.ASSET);
         getWith("/accounts/" + account + "/statement", TestJwks.token("accounts:read")).andExpect(status().isForbidden());
         getWith("/accounts/" + account + "/statement", TestJwks.token("transfers:read")).andExpect(status().isOk());
     }
@@ -180,19 +183,21 @@ class JwtScopeIT extends AbstractIntegrationTest {
 
     @Test
     void idempotencyKeysAreScopedPerCaller() throws Exception {
-        UUID from = newAccount(AccountType.ASSET);
+        UUID aliceFrom = newAccountOwnedBy("user:alice", AccountType.ASSET);
+        UUID bobFrom = newAccountOwnedBy("user:bob", AccountType.ASSET);
         UUID to = newAccount(AccountType.ASSET);
-        fund(from, AccountType.ASSET, 10_000);
+        fund(aliceFrom, AccountType.ASSET, 10_000);
+        fund(bobFrom, AccountType.ASSET, 10_000);
         String key = newKey();
 
         String alice = TestJwks.signWith(TestJwks.claims("transfers:write").subject("alice"), "at+jwt");
         String bob = TestJwks.signWith(TestJwks.claims("transfers:write").subject("bob"), "at+jwt");
 
         MockMvc mvc = plainMvc();
-        transferWith(mvc, alice, from, to, key, 100).andExpect(status().isCreated());
-        transferWith(mvc, alice, from, to, key, 100).andExpect(header().string("Idempotent-Replayed", "true"));
+        transferWith(mvc, alice, aliceFrom, to, key, 100).andExpect(status().isCreated());
+        transferWith(mvc, alice, aliceFrom, to, key, 100).andExpect(header().string("Idempotent-Replayed", "true"));
         // same key, different caller: a separate operation, not a replay of Alice's
-        transferWith(mvc, bob, from, to, key, 100).andExpect(status().isCreated())
+        transferWith(mvc, bob, bobFrom, to, key, 100).andExpect(status().isCreated())
                 .andExpect(header().doesNotExist("Idempotent-Replayed"));
     }
 
