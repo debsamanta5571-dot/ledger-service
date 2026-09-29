@@ -56,7 +56,7 @@ class TransferServiceTest {
     }
 
     private Account account(UUID id, AccountType type, String currency, long overdraft) {
-        return new Account(id, "acct", currency, type, overdraft, Instant.now());
+        return new Account(id, "acct", currency, type, overdraft, Instant.now(), null);
     }
 
     private TransferRequest request(long amount) {
@@ -67,7 +67,7 @@ class TransferServiceTest {
     private void givenFreshTransfer(Account from, Account to, long fromNet) {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
         when(accounts.findByIdForUpdate(fromId)).thenReturn(Optional.of(from));
-        when(accounts.findById(toId)).thenReturn(Optional.of(to));
+        when(accounts.findByIdForKeyShare(toId)).thenReturn(Optional.of(to));
         when(accounts.debitsMinusCredits(fromId)).thenReturn(fromNet);
         when(transfers.insertTransaction(any(), any())).thenReturn(Instant.parse("2025-01-01T00:00:00Z"));
     }
@@ -111,7 +111,7 @@ class TransferServiceTest {
     void rejectsATransferThatWouldOverdrawTheSourceAndPostsNothing() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
         when(accounts.findByIdForUpdate(fromId)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
-        when(accounts.findById(toId)).thenReturn(Optional.of(account(toId, AccountType.ASSET, "USD", 0)));
+        when(accounts.findByIdForKeyShare(toId)).thenReturn(Optional.of(account(toId, AccountType.ASSET, "USD", 0)));
         when(accounts.debitsMinusCredits(fromId)).thenReturn(100L);
 
         assertThatThrownBy(() -> service.transfer(CLIENT, KEY, request(101)))
@@ -147,7 +147,7 @@ class TransferServiceTest {
     void rejectsCurrencyMismatch() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
         when(accounts.findByIdForUpdate(fromId)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
-        when(accounts.findById(toId)).thenReturn(Optional.of(account(toId, AccountType.ASSET, "EUR", 0)));
+        when(accounts.findByIdForKeyShare(toId)).thenReturn(Optional.of(account(toId, AccountType.ASSET, "EUR", 0)));
 
         assertThatThrownBy(() -> service.transfer(CLIENT, KEY, request(10)))
                 .isInstanceOf(InvalidTransferException.class)
@@ -159,7 +159,7 @@ class TransferServiceTest {
     void rejectsTypeMismatch() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
         when(accounts.findByIdForUpdate(fromId)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
-        when(accounts.findById(toId)).thenReturn(Optional.of(account(toId, AccountType.LIABILITY, "USD", 0)));
+        when(accounts.findByIdForKeyShare(toId)).thenReturn(Optional.of(account(toId, AccountType.LIABILITY, "USD", 0)));
 
         assertThatThrownBy(() -> service.transfer(CLIENT, KEY, request(10)))
                 .isInstanceOf(InvalidTransferException.class);

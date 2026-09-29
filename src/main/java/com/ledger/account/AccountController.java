@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,11 +33,22 @@ public class AccountController {
     }
 
     @GetMapping
-    public java.util.List<AccountResponse> list(@RequestParam(defaultValue = "50") int limit) {
+    public java.util.List<AccountResponse> list(@RequestParam(defaultValue = "50") int limit,
+                                                @RequestParam(defaultValue = "false") boolean includeClosed) {
         if (limit < 1 || limit > 100) {
             throw new InvalidRequestException("'limit' must be between 1 and 100");
         }
-        return service.list(limit);
+        return service.list(limit, includeClosed);
+    }
+
+    /**
+     * Closes the account (it is never deleted: its history is append-only). 204 on success and when it was already
+     * closed; 409 if its balance is not zero; 404 if it does not exist.
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> close(@PathVariable UUID id) {
+        service.close(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")

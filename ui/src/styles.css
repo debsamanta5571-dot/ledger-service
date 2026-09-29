@@ -63,3 +63,13 @@ td {
 .hint {
   opacity: 0.6;
 }
+tr.closed td {
+  opacity: 0.5;
+}
+.badge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  font-size: 0.75em;
+}

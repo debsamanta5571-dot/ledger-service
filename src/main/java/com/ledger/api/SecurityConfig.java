@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/accounts", "/accounts/*").hasAuthority("SCOPE_accounts:read")
                         .requestMatchers(HttpMethod.POST, "/accounts").hasAuthority("SCOPE_accounts:write")
+                        .requestMatchers(HttpMethod.DELETE, "/accounts/*").hasAuthority("SCOPE_accounts:write")
                         .requestMatchers(HttpMethod.GET, "/accounts/*/statement").hasAuthority("SCOPE_transfers:read")
                         .requestMatchers(HttpMethod.POST, "/transfers").hasAuthority("SCOPE_transfers:write")
                         .anyRequest().denyAll())

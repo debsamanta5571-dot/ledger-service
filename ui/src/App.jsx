@@ -28,7 +28,7 @@ export default function App() {
       return;
     }
     try {
-      const { data } = await api(apiKey, '/accounts?limit=100');
+      const { data } = await api(apiKey, '/accounts?limit=100&includeClosed=true');
       if (latestKey.current !== apiKey) return; // a newer key was typed while this request was in flight
       setAccounts(data);
       setError(null);

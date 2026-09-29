@@ -3,7 +3,8 @@ import { api, describeError } from './api.js';
 import { formatMinor, parseMajor } from './money.js';
 import { newIdempotencyKey } from './ids.js';
 
-export default function TransferPanel({ apiKey, accounts, onChanged }) {
+export default function TransferPanel({ apiKey, accounts: allAccounts, onChanged }) {
+  const accounts = allAccounts.filter((a) => !a.closedAt);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');

@@ -1,5 +1,7 @@
 package com.ledger.api;
 
+import com.ledger.account.AccountClosedException;
+import com.ledger.account.AccountNotEmptyException;
 import com.ledger.account.AccountNotFoundException;
 import com.ledger.ledger.InsufficientFundsException;
 import com.ledger.ledger.UnbalancedTransactionException;
@@ -38,6 +40,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(AccountNotFoundException.class)
     ProblemDetail accountNotFound(AccountNotFoundException e) {
         return problem(HttpStatus.NOT_FOUND, "account-not-found", "Account not found", e.getMessage());
+    }
+
+    @ExceptionHandler(AccountNotEmptyException.class)
+    ProblemDetail accountNotEmpty(AccountNotEmptyException e) {
+        ProblemDetail p = problem(HttpStatus.CONFLICT, "account-not-empty", "Account not empty", e.getMessage());
+        p.setProperty("balance", e.balance());
+        return p;
+    }
+
+    @ExceptionHandler(AccountClosedException.class)
+    ProblemDetail accountClosed(AccountClosedException e) {
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "account-closed", "Account closed", e.getMessage());
     }
 
     @ExceptionHandler(InsufficientFundsException.class)

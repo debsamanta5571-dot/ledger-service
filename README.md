@@ -179,7 +179,8 @@ An error response is `application/problem+json`, for example:
 | Method & path | Notes |
 | --- | --- |
 | `POST /accounts` | `name`, `currency` (ISO 4217), `type`, optional `overdraftLimit` → 201 |
-| `GET /accounts` / `GET /accounts/{id}` | list (newest first, `limit` ≤ 100) / one account with derived balance |
+| `GET /accounts` / `GET /accounts/{id}` | list of open accounts (newest first, `limit` ≤ 100, `includeClosed=true` for all) / one account with derived balance |
+| `DELETE /accounts/{id}` | **closes** the account: 204 (also if already closed), 409 if the balance is not zero |
 | `GET /accounts/{id}/statement` | `from`, `to` (inclusive UTC dates), `page`, `size` ≤ 100; opening/closing balance and a running balance per entry |
 | `POST /transfers` | requires `Idempotency-Key`; 201 / 404 / 409 / 422 |
 | `GET /health` | database connectivity; no auth |
@@ -240,6 +241,17 @@ The request is hashed from the *parsed* body (not raw bytes), so whitespace or f
 retry into a spurious `409`. Keys are scoped per API key, so one client can never replay another's response.
 Not implemented: expiry of old keys (a purge job would be needed at scale).
 
+### Removing an account means closing it
+Entries are append-only, so an account is never deleted: that would break its entries' foreign keys or erase its
+history. `DELETE /accounts/{id}` sets `closed_at` instead. It is refused unless the balance is exactly zero (no
+stranded money); a closed account keeps its statement but is hidden from listings and cannot send or receive.
+
+The race that matters is a transfer *into* the account landing while it is being closed. Closing takes
+`FOR UPDATE`; transfers take `FOR NO KEY UPDATE` on the source and `FOR KEY SHARE` on the destination, and both
+conflict with it, so a close waits for in-flight transfers and blocks new ones until it commits. Transfers never
+block each other on the destination. `AccountClosingIT` races 10 transfers against 10 closes, 10 times over; with
+the destination lock removed it fails every run.
+
 ### Transfer semantics
 A transfer moves value from A to B in each account's own terms: an `ASSET` is credited to decrease and debited
 to increase, a `LIABILITY` the opposite. Source and destination must share **currency** and **type** (an
@@ -295,6 +307,11 @@ project, and an ORM would hide exactly the parts worth reading. No `ddl-auto`; F
 instances thanks to a Postgres advisory lock. It is derived data: nothing in the posting path reads it.
 
 ### Testing
+`LedgerIntegrityIT` fires 200 random concurrent requests (transfers, reused idempotency keys, doomed
+requests, close attempts) and then checks every invariant over the journal: each transaction balances with one
+debit and one credit, money is conserved, no account ever went below its limit, every idempotency record points at
+a real transaction, and no closed account holds money.
+
 Integration tests run against real Postgres via Testcontainers (a mock database cannot tell you whether a row lock
 works). Unit tests cover the balancing rule, the overdraft rule and the transfer service in isolation. CI runs
 build/test with JaCoCo coverage, CodeQL, dependency review and Trivy, and builds the Docker image.

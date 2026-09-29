@@ -3,6 +3,7 @@ package com.ledger.transfer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledger.account.Account;
+import com.ledger.account.AccountClosedException;
 import com.ledger.account.AccountNotFoundException;
 import com.ledger.account.AccountRepository;
 import com.ledger.ledger.BalancingRule;
@@ -74,8 +75,17 @@ public class TransferService {
         // keeps the destination's foreign-key check from blocking, which is what avoids A<->B deadlocks.
         Account from = accounts.findByIdForUpdate(req.fromAccountId())
                 .orElseThrow(() -> new AccountNotFoundException(req.fromAccountId()));
-        Account to = accounts.findById(req.toAccountId())
+        // KEY SHARE on the destination: it cannot be closed while this transfer is in flight (see the repository).
+        Account to = accounts.findByIdForKeyShare(req.toAccountId())
                 .orElseThrow(() -> new AccountNotFoundException(req.toAccountId()));
+
+        // Checked after both locks are held, so a concurrent close cannot slip in between check and posting.
+        if (from.isClosed()) {
+            throw new AccountClosedException(from.id());
+        }
+        if (to.isClosed()) {
+            throw new AccountClosedException(to.id());
+        }
 
         if (!from.currency().equals(req.currency()) || !to.currency().equals(req.currency())) {
             throw new InvalidTransferException("Both accounts must be denominated in " + req.currency());

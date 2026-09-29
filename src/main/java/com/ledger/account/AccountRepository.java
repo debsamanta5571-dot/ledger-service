@@ -20,7 +20,7 @@ public class AccountRepository {
         return jdbc.sql("""
                 INSERT INTO accounts (id, name, currency, type, overdraft_limit)
                 VALUES (:id, :name, :currency, :type, :overdraftLimit)
-                RETURNING id, name, currency, type, overdraft_limit, created_at
+                RETURNING id, name, currency, type, overdraft_limit, created_at, closed_at
                 """)
                 .param("id", account.id())
                 .param("name", account.name())
@@ -33,7 +33,7 @@ public class AccountRepository {
 
     public Optional<Account> findById(UUID id) {
         return jdbc.sql("""
-                SELECT id, name, currency, type, overdraft_limit, created_at
+                SELECT id, name, currency, type, overdraft_limit, created_at, closed_at
                 FROM accounts WHERE id = :id
                 """)
                 .param("id", id)
@@ -44,16 +44,18 @@ public class AccountRepository {
     public record AccountWithNet(Account account, long debitsMinusCredits) {
     }
 
-    /** Most recently created accounts first, each with its derived balance. */
-    public java.util.List<AccountWithNet> findRecentWithNet(int limit) {
+    /** Most recently created accounts first, each with its derived balance. Closed ones only if asked for. */
+    public java.util.List<AccountWithNet> findRecentWithNet(int limit, boolean includeClosed) {
         return jdbc.sql("""
-                SELECT a.id, a.name, a.currency, a.type, a.overdraft_limit, a.created_at,
+                SELECT a.id, a.name, a.currency, a.type, a.overdraft_limit, a.created_at, a.closed_at,
                        COALESCE((SELECT SUM(CASE e.direction WHEN 'DEBIT' THEN e.amount ELSE -e.amount END)
                                  FROM entries e WHERE e.account_id = a.id), 0) AS net
-                FROM (SELECT * FROM accounts ORDER BY created_at DESC, id LIMIT :limit) a
+                FROM (SELECT * FROM accounts WHERE closed_at IS NULL OR :includeClosed
+                      ORDER BY created_at DESC, id LIMIT :limit) a
                 ORDER BY a.created_at DESC, a.id
                 """)
                 .param("limit", limit)
+                .param("includeClosed", includeClosed)
                 .query((rs, n) -> new AccountWithNet(map(rs, n), rs.getLong("net")))
                 .list();
     }
@@ -69,12 +71,49 @@ public class AccountRepository {
      */
     public Optional<Account> findByIdForUpdate(UUID id) {
         return jdbc.sql("""
-                SELECT id, name, currency, type, overdraft_limit, created_at
+                SELECT id, name, currency, type, overdraft_limit, created_at, closed_at
                 FROM accounts WHERE id = :id FOR NO KEY UPDATE
                 """)
                 .param("id", id)
                 .query(AccountRepository::map)
                 .optional();
+    }
+
+    /**
+     * Share-locks the account so it cannot be closed until this transaction ends. Transfers take this on the
+     * DESTINATION: without it, a transfer could read "open", then the account could be closed (balance 0), and then
+     * the transfer's credit would land in a closed account. {@code FOR KEY SHARE} conflicts only with the
+     * {@code FOR UPDATE} taken by {@link #findByIdForClose}; it does not block other transfers.
+     */
+    public Optional<Account> findByIdForKeyShare(UUID id) {
+        return jdbc.sql("""
+                SELECT id, name, currency, type, overdraft_limit, created_at, closed_at
+                FROM accounts WHERE id = :id FOR KEY SHARE
+                """)
+                .param("id", id)
+                .query(AccountRepository::map)
+                .optional();
+    }
+
+    /**
+     * Exclusive lock for closing. {@code FOR UPDATE} conflicts with both locks transfers take (NO KEY UPDATE on a
+     * source, KEY SHARE on a destination), so closing waits for in-flight transfers touching this account and
+     * blocks new ones until it commits. The balance read after this lock is therefore final.
+     */
+    public Optional<Account> findByIdForClose(UUID id) {
+        return jdbc.sql("""
+                SELECT id, name, currency, type, overdraft_limit, created_at, closed_at
+                FROM accounts WHERE id = :id FOR UPDATE
+                """)
+                .param("id", id)
+                .query(AccountRepository::map)
+                .optional();
+    }
+
+    public void markClosed(UUID id) {
+        jdbc.sql("UPDATE accounts SET closed_at = clock_timestamp() WHERE id = :id AND closed_at IS NULL")
+                .param("id", id)
+                .update();
     }
 
     /** sum(debits) - sum(credits) over the journal; the balance is always derived, never stored. */
@@ -95,6 +134,7 @@ public class AccountRepository {
                 rs.getString("currency"),
                 AccountType.valueOf(rs.getString("type")),
                 rs.getLong("overdraft_limit"),
-                rs.getTimestamp("created_at").toInstant());
+                rs.getTimestamp("created_at").toInstant(),
+                rs.getTimestamp("closed_at") == null ? null : rs.getTimestamp("closed_at").toInstant());
     }
 }
