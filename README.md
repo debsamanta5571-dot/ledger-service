@@ -34,52 +34,7 @@ What it does:
   dependency scanning, and a job that has an LLM write tests and then uses mutation testing to check whether those
   tests catch anything.
 
-## Architecture
-
-```mermaid
-flowchart LR
-    UI["Web page (React)"] -->|"Bearer token or X-API-Key"| F
-    CLI["curl / scripts"] -->|X-API-Key| F
-    UI -.->|"sign in (OAuth 2.0 + PKCE)"| IDP["Identity service"]
-    F -.->|"public keys (JWKS)"| IDP
-
-    subgraph Service["Ledger service (Spring Boot)"]
-        F["Spring Security chain<br/>verifies the token or API key,<br/>one scope per endpoint"] --> C["Controllers<br/>accounts · transfers · statements · API keys"]
-        C --> S["Services<br/>one database transaction per write"]
-        S --> R["Rules<br/>BalancingRule · OverdraftRule"]
-        S --> Repo["Repositories (JdbcClient)"]
-        J["DailyBalanceJob<br/>@Scheduled, advisory-locked"] --> Repo
-    end
-
-    Repo --> DB[("PostgreSQL<br/>accounts · transactions · entries<br/>idempotency_keys · api_keys · daily_balances")]
-    FW["Flyway migrations"] -.->|"the only way the schema changes"| DB
-```
-
-### What happens on `POST /transfers`
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API as TransferService (one database transaction)
-    participant DB as PostgreSQL
-
-    Client->>API: POST /transfers + Idempotency-Key
-    API->>DB: INSERT INTO idempotency_keys ... ON CONFLICT DO NOTHING
-    alt key already used
-        DB-->>API: 0 rows (waits if the first request is still in flight)
-        API-->>Client: the stored response, or 409 if the request differs
-    else new key
-        API->>DB: lock the source account with FOR NO KEY UPDATE (must be yours, unless you are an admin)
-        API->>DB: lock the destination account with FOR KEY SHARE (may belong to anyone)
-        API->>DB: SUM(entries) for the source, read under the lock
-        API->>API: BalancingRule + OverdraftRule
-        API->>DB: INSERT the transaction (recording who initiated it) + 2 entries
-        API->>DB: UPDATE idempotency_keys SET the stored response
-        API-->>Client: 201 (COMMIT)
-    end
-```
-
-### Data model
+## Data model
 
 | Table | Purpose |
 | --- | --- |
