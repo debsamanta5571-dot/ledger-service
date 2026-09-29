@@ -1,5 +1,9 @@
 # Ledger Service
 
+[![CI](https://github.com/debsamanta5571-dot/ledger-service/actions/workflows/ci.yml/badge.svg)](https://github.com/debsamanta5571-dot/ledger-service/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/debsamanta5571-dot/ledger-service/actions/workflows/codeql.yml/badge.svg)](https://github.com/debsamanta5571-dot/ledger-service/actions/workflows/codeql.yml)
+[![Dependency scan](https://github.com/debsamanta5571-dot/ledger-service/actions/workflows/dependency-scan.yml/badge.svg)](https://github.com/debsamanta5571-dot/ledger-service/actions/workflows/dependency-scan.yml)
+
 A double-entry ledger service: accounts, balanced transactions, idempotent transfers, and account statements,
 on **Java 21 / Spring Boot 3 / PostgreSQL**. Money moves only by appending balanced entries to an immutable
 journal; every balance is derived from that journal.

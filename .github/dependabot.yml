@@ -1,18 +1,38 @@
 version: 2
+# Minor/patch updates only, grouped into one PR per ecosystem. Major upgrades (Spring Boot 4, new JDK lines,
+# Vite/React majors) are migrations, so they are done deliberately rather than by bot.
 updates:
   - package-ecosystem: maven
     directory: /
     schedule:
       interval: weekly
+    groups:
+      maven-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /ui
     schedule:
       interval: weekly
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
