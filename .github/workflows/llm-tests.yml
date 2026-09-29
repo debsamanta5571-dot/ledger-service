@@ -63,7 +63,7 @@ jobs:
             echo "has_tests=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.result.outputs.has_tests == 'true'
         with:
           name: llm-testgen
@@ -127,7 +127,7 @@ jobs:
           echo >> "$GITHUB_STEP_SUMMARY"
           node scripts/llm-testgen/pit-report.mjs target/pit-reports/mutations.xml "$RUNNER_TEMP/llm-testgen/manifest.verified.json" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: llm-testgen-results
