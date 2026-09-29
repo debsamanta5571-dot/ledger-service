@@ -25,6 +25,7 @@ Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
 jpackage --type app-image --name Ledger --input target --main-jar $jar `
   --dest dist --win-console `
   --java-options '-Dledger.open-browser=true' `
-  --java-options '-Dledger.auth.bootstrap-api-key=dev-local-key'
+  --java-options '-Dledger.auth.bootstrap-api-key=dev-local-key' `
+  --java-options '-Dledger.auth.api-key-scopes=accounts:read,accounts:write,transfers:read,transfers:write'
 if ($LASTEXITCODE -ne 0) { throw 'jpackage failed' }
 Write-Host 'Done: dist\Ledger\Ledger.exe  (needs Postgres: docker compose up -d db)'
