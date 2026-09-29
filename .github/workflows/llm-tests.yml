@@ -29,7 +29,7 @@ jobs:
     outputs:
       has_tests: ${{ steps.result.outputs.has_tests }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-java@v4
