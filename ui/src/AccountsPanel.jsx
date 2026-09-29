@@ -109,7 +109,7 @@ export default function AccountsPanel({ apiKey, accounts, onChanged, onViewState
               <td className="num">{formatMinor(a.overdraftLimit)}</td>
               <td className={`num ${a.balance < 0 ? 'neg' : ''}`}>{formatMinor(a.balance)}</td>
               <td className="mono">{a.id.slice(0, 8)}</td>
-              <td>
+              <td className="row-actions">
                 <AccountActions
                   account={a}
                   busy={pending === a.id}

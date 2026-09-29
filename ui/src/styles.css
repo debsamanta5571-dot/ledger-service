@@ -63,7 +63,9 @@ td {
 .hint {
   opacity: 0.6;
 }
-tr.closed td {
+/* Fade a closed account's data, but not its Actions menu: opacity is inherited by everything inside a cell,
+   which made the menu look disabled even though its options still work. */
+tr.closed td:not(.row-actions) {
   opacity: 0.5;
 }
 .badge {
