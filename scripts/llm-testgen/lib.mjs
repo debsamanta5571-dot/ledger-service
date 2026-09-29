@@ -94,7 +94,7 @@ Rules:
 - Use JUnit 5, AssertJ (org.assertj.core.api.Assertions) and Mockito (with MockitoExtension) only.
 - Pure unit tests: no Spring context, no database, no network, no file system, no reflection tricks, no Thread.sleep.
 - Put the test in the SAME package as the class under test and name it <ClassName>GeneratedTest.
-- Test observable behaviour, including boundary values and failure cases. Every test must assert something
+- Test observable behavior, including boundary values and failure cases. Every test must assert something
   meaningful; never write a test that cannot fail. Do not assert on implementation details such as private state.
 - Only call constructors and methods that actually exist with the signatures shown. If something is not visible
   from the code you were given, do not guess: leave it untested.

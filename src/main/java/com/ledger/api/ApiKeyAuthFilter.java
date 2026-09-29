@@ -18,10 +18,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Authenticates the {@code X-API-Key} header, applies that key's rate limit, and gives the caller the scopes in
- * {@code ledger.auth.api-key-scopes}. It runs inside the Spring Security chain (see {@link SecurityConfig}) so
- * API keys and bearer tokens are authorised by the same scope rules. A request without the header simply passes
- * through: the bearer-token filter and the access rules decide what happens to it.
+ * Authenticates the {@code X-API-Key} header and applies that key's rate limit. A personal key acts as its owner with
+ * its own scopes; a service key (the bootstrap key) acts as itself with the scopes in
+ * {@code ledger.auth.api-key-scopes}. The filter runs inside the Spring Security chain (see {@link SecurityConfig}),
+ * so API keys and bearer tokens are authorized by the same scope rules. A request without the header passes straight
+ * through, and the bearer-token filter and the access rules decide what happens to it.
  */
 @Component
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
@@ -46,7 +47,8 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // Public: health, API docs, and the bundled UI's static files (the UI itself sends the key on API calls).
+        // Public: health, API docs, sign-in settings, and the bundled UI's static files. The UI authenticates its own
+        // API calls.
         return path.equals("/health") || path.startsWith("/swagger-ui") || path.startsWith("/v3/api-docs")
                 || path.equals("/") || path.equals("/index.html") || path.startsWith("/assets/")
                 || path.equals("/favicon.ico") || path.equals("/ui-config");
@@ -64,8 +66,8 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         try {
             key = keys.findActiveByHash(ApiKeyHasher.sha256Hex(presented));
         } catch (DataAccessException e) {
-            // The key cannot be checked because the database is unreachable. Say so: letting this escape used to
-            // surface as "401 Unauthorized", which sent users off to fix a perfectly good key.
+            // The key cannot be checked because the database is unreachable, so say that. Letting the error escape
+            // used to produce "401 Unauthorized", which sent users off to fix a perfectly good key.
             response.setHeader("Retry-After", "5");
             ProblemResponse.write(json, request, response, HttpStatus.SERVICE_UNAVAILABLE, "service-unavailable",
                     "Service unavailable", "The ledger database is unreachable; try again shortly");
@@ -73,7 +75,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         }
         if (key.isEmpty()) {
             reject(request, response, HttpStatus.UNAUTHORIZED, "invalid-api-key", "Invalid API key",
-                    "The API key is not recognised or has been revoked");
+                    "The API key is not recognized or has been revoked");
             return;
         }
 
@@ -88,11 +90,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // The principal name is the key id, which TransferController uses to scope idempotency keys per caller.
-        // A personal key acts as its owner, with its own scopes; a service key as itself, with the configured ones.
+        // The principal is who the key acts as (see ApiKey#principal); it owns accounts and scopes idempotency keys.
         List<GrantedAuthority> granted = key.get().scopes() == null
                 ? authorities
-                : key.get().scopes().stream().<GrantedAuthority>map(s -> new SimpleGrantedAuthority("SCOPE_" + s)).toList();
+                : key.get().scopes().stream()
+                        .<GrantedAuthority>map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope))
+                        .toList();
         UsernamePasswordAuthenticationToken authentication =
                 UsernamePasswordAuthenticationToken.authenticated(key.get().principal(), null, granted);
         authentication.setDetails(key.get().label()); // readable label for audit trails (see Caller)

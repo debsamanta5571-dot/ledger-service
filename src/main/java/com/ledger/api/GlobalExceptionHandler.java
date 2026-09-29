@@ -118,7 +118,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * Spring does not categorise every Postgres "try again" error: a lock timeout (SQL state 55P03) arrives as a
+     * Spring does not categorize every Postgres "try again" error: a lock timeout (SQL state 55P03) arrives as a
      * plain {@link UncategorizedSQLException}, so the SQL state is checked too.
      */
     static boolean isTemporary(DataAccessException e) {

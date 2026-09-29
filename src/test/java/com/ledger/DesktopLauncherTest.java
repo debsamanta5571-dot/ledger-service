@@ -11,7 +11,7 @@ class DesktopLauncherTest {
     @Test
     void explainsAPortConflict() {
         Throwable failure = new IllegalStateException("start failed", new PortInUseException(8080));
-        assertThat(DesktopLauncher.explain(failure, "8080")).contains("Port 8080 is already used");
+        assertThat(DesktopLauncher.explain(failure, "8080")).contains("Port 8080 is already in use");
     }
 
     @Test

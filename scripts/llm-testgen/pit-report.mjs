@@ -112,7 +112,7 @@ export function render(a) {
     }
   }
   if (a.survivors.length) {
-    out.push('', '#### Surviving mutants (behaviour no test pins down)', '');
+    out.push('', '#### Surviving mutants (behavior no test pins down)', '');
     out.push('| Class | Method | Line | Mutation | Status |', '| --- | --- | ---: | --- | --- |');
     for (const s of a.survivors.slice(0, 15)) {
       out.push(`| \`${s.cls.replace('com.ledger.', '')}\` | ${s.method} | ${s.line} | ${s.description} | ${s.status.toLowerCase().replace('_', ' ')} |`);

@@ -16,7 +16,7 @@ public class UiConfigController {
     private final Map<String, String> config;
 
     public UiConfigController(JwtProperties jwt, @Value("${ledger.auth.ui.client-id:ledger-ui}") String clientId) {
-        String issuer = jwt.issuer().endsWith("/") ? jwt.issuer().substring(0, jwt.issuer().length() - 1) : jwt.issuer();
+        String issuer = jwt.issuer().replaceAll("/+$", ""); // "http://host:5001/" -> "http://host:5001"
         this.config = Map.of(
                 "identityUrl", issuer,
                 "clientId", clientId,
@@ -24,8 +24,9 @@ public class UiConfigController {
                 // ledger's own scopes. The identity service grants only those the user's role allows, so asking for the
                 // admin ones is harmless: only the admin role receives ledger:admin (every account) and users:admin
                 // (create sign-in accounts from the "New account" dialog).
-                "scope", "openid profile email offline_access accounts:read accounts:write transfers:read transfers:write "
-                        + "ledger:admin users:admin");
+                "scope", "openid profile email offline_access"
+                        + " accounts:read accounts:write transfers:read transfers:write"
+                        + " ledger:admin users:admin");
     }
 
     @GetMapping("/ui-config")

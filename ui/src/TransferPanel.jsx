@@ -12,7 +12,7 @@ export default function TransferPanel({ auth, isAdmin, accounts: allAccounts, on
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  // Paying someone else: their account is not in our list, so its id is typed (or pasted) in.
+  // Paying someone else: their account is not in our list, so its ID is typed or pasted in.
   const [payeeId, setPayeeId] = useState('');
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -32,11 +32,14 @@ export default function TransferPanel({ auth, isAdmin, accounts: allAccounts, on
     e.preventDefault();
     const minor = parseMajor(amount);
     if (!source || !destination || minor === null || minor === 0) {
-      setMessage({ kind: 'error', text: 'Pick both accounts and enter a positive amount like 25 or 25.50' });
+      setMessage({ kind: 'error', text: 'Choose both accounts and enter a positive amount, such as 25 or 25.50.' });
       return;
     }
     if (payingSomeoneElse && !UUID.test(destination)) {
-      setMessage({ kind: 'error', text: 'That does not look like an account ID (use "Copy account ID" on theirs)' });
+      setMessage({
+        kind: 'error',
+        text: 'That does not look like an account ID. Ask the recipient to use "Copy account ID" on their account.',
+      });
       return;
     }
     setBusy(true);
@@ -55,7 +58,7 @@ export default function TransferPanel({ auth, isAdmin, accounts: allAccounts, on
       setMessage({
         kind: 'ok',
         text: `Transferred ${formatMinor(data.amount)} ${data.currency} (transaction ${data.transactionId.slice(0, 8)})${
-          replayed ? ' — this was a replay of an earlier identical request' : ''
+          replayed ? ' (a replay of an earlier, identical request)' : ''
         }`,
       });
       setAmount('');

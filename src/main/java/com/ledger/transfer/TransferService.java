@@ -42,7 +42,7 @@ public class TransferService {
      */
     @Transactional
     public TransferResult transfer(Caller caller, String idempotencyKey, TransferRequest req) {
-        // Idempotency keys are scoped per caller; the caller must own the source account unless they are an admin.
+        // Idempotency keys are scoped per caller. The caller must own the source account unless they are an admin.
         String clientId = caller.id();
         String hash = RequestHasher.hash(req);
         if (!idempotency.claim(clientId, idempotencyKey, hash)) {
@@ -73,18 +73,19 @@ public class TransferService {
             throw new InvalidTransferException("Source and destination accounts must differ");
         }
 
-        // Lock only the account being drained. It is the only balance this transfer can push below its
-        // limit. One lock per transaction means no lock ordering to get wrong; NO KEY UPDATE (see the repository)
-        // keeps the destination's foreign-key check from blocking, which is what avoids A<->B deadlocks.
+        // Two locks, and they never deadlock. The source gets NO KEY UPDATE, which serializes transfers out of the same
+        // account; it is the only balance this transfer can push below its limit. The destination gets KEY SHARE,
+        // which stops it from being closed mid-transfer but blocks no other transfer. The two lock modes do not
+        // conflict, so opposite transfers (A to B and B to A) cannot wait on each other. AccountRepository has details.
+        //
         // Only the owner (or an admin) can send from an account; to anyone else it looks exactly like a missing one.
         Account from = accounts.findVisibleForTransferSource(req.fromAccountId(), caller)
                 .orElseThrow(() -> new AccountNotFoundException(req.fromAccountId()));
-        // The destination may be anyone's (paying another customer). KEY SHARE: it cannot be closed or deleted while
-        // this transfer is in flight (see the repository).
+        // The destination may belong to anyone: paying another customer is allowed.
         Account to = accounts.findForTransferDestination(req.toAccountId())
                 .orElseThrow(() -> new AccountNotFoundException(req.toAccountId()));
 
-        // Checked after both locks are held, so a concurrent close cannot slip in between check and posting.
+        // Checked after both locks are held, so a concurrent close cannot slip in between the check and the posting.
         if (from.isClosed()) {
             throw new AccountClosedException(from.id());
         }

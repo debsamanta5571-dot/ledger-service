@@ -55,7 +55,9 @@ export function codeFromCallback(search, pending) {
   if (!pending) throw new Error('No sign-in was in progress. Please sign in again.');
   if (q.get('error')) throw new Error(q.get('error_description') || q.get('error'));
   // CSRF protection: the state must be the one this browser generated.
-  if (q.get('state') !== pending.state) throw new Error('Sign-in response did not match this browser (state mismatch).');
+  if (q.get('state') !== pending.state) {
+    throw new Error('The sign-in response does not match this browser (state mismatch).');
+  }
   const code = q.get('code');
   if (!code) throw new Error('The identity service returned no authorization code.');
   return code;
@@ -71,7 +73,10 @@ export function readClaims(jwt) {
 }
 
 export class OAuthSession {
-  constructor(config, { storage = sessionStorage, location = window.location, fetchImpl = (...a) => fetch(...a) } = {}) {
+  constructor(
+    config,
+    { storage = sessionStorage, location = window.location, fetchImpl = (...args) => fetch(...args) } = {},
+  ) {
     this.config = config;
     this.storage = storage;
     this.location = location;

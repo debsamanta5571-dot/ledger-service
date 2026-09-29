@@ -66,7 +66,9 @@ public abstract class AbstractIntegrationTest {
 
     /** Owner id of the bootstrap API key, i.e. the caller behind the autowired {@code mvc}. */
     protected String apiKeyOwner() {
-        return jdbc.queryForObject("SELECT id::text FROM api_keys WHERE name = 'bootstrap' AND owner_id IS NULL AND active", String.class);
+        return jdbc.queryForObject(
+                "SELECT id::text FROM api_keys WHERE name = 'bootstrap' AND owner_id IS NULL AND active",
+                String.class);
     }
 
     /** Creates an account owned by the default test caller (the bootstrap API key). */

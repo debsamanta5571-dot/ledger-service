@@ -19,7 +19,7 @@ public class IdempotencyRepository {
     /**
      * Claims the key for this transaction. Returns false if the key already exists. If a concurrent
      * transaction is mid-flight with the same key, Postgres blocks this insert until that transaction
-     * commits or rolls back, so duplicates are serialised by the unique index itself.
+     * commits or rolls back, so duplicates are serialized by the unique index itself.
      */
     public boolean claim(String clientId, String key, String requestHash) {
         return jdbc.sql("""

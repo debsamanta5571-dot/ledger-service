@@ -48,11 +48,11 @@ public class AccountController {
     }
 
     /**
-     * Without {@code permanent}: closes the account, which keeps its history. 204 on success and when already
-     * closed; 409 if the balance is not zero.
+     * Without {@code permanent}: closes the account, which keeps its history. Returns 204 on success, including when
+     * the account was already closed, and 409 if the balance is not zero.
      *
      * <p>With {@code permanent=true}: deletes the account for good, which is only allowed if it has never had a
-     * transaction (409 otherwise, since its entries are append-only history). 404 if it does not exist.
+     * transaction (409 otherwise, because its entries are append-only history). Returns 404 if it does not exist.
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(Authentication caller, @PathVariable UUID id,

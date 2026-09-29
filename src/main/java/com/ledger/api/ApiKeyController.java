@@ -67,7 +67,8 @@ public class ApiKeyController {
     @PostMapping
     public ResponseEntity<CreatedKey> create(Authentication auth, @Valid @RequestBody CreateKeyRequest request) {
         if (!(auth instanceof JwtAuthenticationToken)) {
-            throw new ForbiddenOperationException("API keys can only be created by a signed-in person, not by another key");
+            throw new ForbiddenOperationException(
+                    "API keys can only be created by a signed-in person, not by another API key");
         }
         Caller caller = Caller.of(auth);
         boolean forSomeoneElse = request.ownerId() != null && !request.ownerId().equals(caller.id());
@@ -81,7 +82,7 @@ public class ApiKeyController {
 
         byte[] secret = new byte[32];
         RANDOM.nextBytes(secret);
-        // "lk_" makes leaked keys easy to recognise (and to add to secret scanners).
+        // "lk_" makes leaked keys easy to recognize (and to add to secret scanners).
         String plaintext = "lk_" + Base64.getUrlEncoder().withoutPadding().encodeToString(secret);
         ApiKeyRepository.KeyInfo info = keys.insertPersonal(request.name().strip(), ApiKeyHasher.sha256Hex(plaintext),
                 PERSONAL_RATE_LIMIT_PER_MINUTE, ownerId, ownerName, PERSONAL_SCOPES, caller.id());
@@ -90,7 +91,8 @@ public class ApiKeyController {
                 plaintext, info.ownerId(), info.ownerName(), info.scopes(), info.createdAt()));
     }
 
-    @Operation(summary = "List personal API keys", description = "Your keys; an admin sees everyone's. Never the secrets.")
+    @Operation(summary = "List personal API keys",
+            description = "Your keys (an admin sees everyone's). The secrets are never included.")
     @GetMapping
     public List<ApiKeyRepository.KeyInfo> list(Authentication auth) {
         return keys.listVisible(Caller.of(auth));

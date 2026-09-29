@@ -8,7 +8,8 @@ public class AccountNotEmptyException extends RuntimeException {
     private final long balance;
 
     public AccountNotEmptyException(UUID id, long balance) {
-        super("Account " + id + " has balance " + balance + "; move it to zero before closing");
+        super("Account " + id + " still has a balance of " + balance
+                + "; bring it to zero before closing the account");
         this.balance = balance;
     }
 

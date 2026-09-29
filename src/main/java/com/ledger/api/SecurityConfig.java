@@ -78,7 +78,8 @@ public class SecurityConfig {
      * Verifies tokens against the identity service's published keys. Deliberately strict:
      * <ul>
      *   <li>only RS256 is accepted, which rules out {@code alg: none} and HS256-signed-with-the-public-key tricks;</li>
-     *   <li>the JOSE {@code typ} must be {@code at+jwt} (RFC 9068), so an ID token cannot be used as an access token;</li>
+     *   <li>the JOSE {@code typ} must be {@code at+jwt} (RFC 9068), so an ID token cannot be used as an access
+     *       token;</li>
      *   <li>the issuer must match exactly and the audience must include this API;</li>
      *   <li>expiry is checked (default 60 s clock skew).</li>
      * </ul>
@@ -93,7 +94,8 @@ public class SecurityConfig {
                         new DefaultJOSEObjectTypeVerifier<>(new JOSEObjectType("at+jwt"))))
                 .build();
 
-        OAuth2TokenValidator<Jwt> audience = jwt -> jwt.getAudience() != null && jwt.getAudience().contains(props.audience())
+        OAuth2TokenValidator<Jwt> audience = jwt ->
+                jwt.getAudience() != null && jwt.getAudience().contains(props.audience())
                 ? OAuth2TokenValidatorResult.success()
                 : OAuth2TokenValidatorResult.failure(
                         new OAuth2Error("invalid_token", "The token is not intended for this API", null));

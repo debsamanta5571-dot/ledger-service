@@ -81,7 +81,8 @@ public class ApiKeyRepository {
     public KeyInfo insertPersonal(String name, String keyHash, int rateLimitPerMinute, String ownerId,
                                   String ownerName, List<String> scopes, String createdBy) {
         return jdbc.sql("""
-                INSERT INTO api_keys (id, name, key_hash, rate_limit_per_minute, owner_id, owner_name, scopes, created_by)
+                INSERT INTO api_keys (id, name, key_hash, rate_limit_per_minute,
+                                      owner_id, owner_name, scopes, created_by)
                 VALUES (:id, :name, :hash, :limit, :owner, :ownerName, :scopes, :createdBy)
                 RETURNING id, name, owner_id, owner_name, scopes, active, created_at
                 """)
@@ -129,6 +130,9 @@ public class ApiKeyRepository {
     }
 
     private static List<String> scopes(String spaceSeparated) {
-        return spaceSeparated == null ? null : Arrays.stream(spaceSeparated.split(" ")).filter(s -> !s.isBlank()).toList();
+        if (spaceSeparated == null) {
+            return null;
+        }
+        return Arrays.stream(spaceSeparated.split(" ")).filter(s -> !s.isBlank()).toList();
     }
 }

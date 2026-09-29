@@ -18,7 +18,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class AccountRepository {
 
-    private static final String COLUMNS = "id, owner_id, owner_name, name, currency, type, overdraft_limit, created_at, closed_at";
+    private static final String COLUMNS =
+            "id, owner_id, owner_name, name, currency, type, overdraft_limit, created_at, closed_at";
 
     private final JdbcClient jdbc;
 
@@ -52,12 +53,13 @@ public class AccountRepository {
 
     /**
      * Most recently created first, with derived balances. A normal caller gets their own accounts; an admin gets
-     * everyone's unless {@code mineOnly}. Closed accounts only if asked for.
+     * everyone's unless {@code mineOnly}. Closed accounts are included only when asked for.
      */
     public List<AccountWithNet> findRecentVisibleWithNet(Caller caller, int limit, boolean includeClosed,
                                                          boolean mineOnly) {
         return jdbc.sql("""
-                SELECT a.id, a.owner_id, a.owner_name, a.name, a.currency, a.type, a.overdraft_limit, a.created_at, a.closed_at,
+                SELECT a.id, a.owner_id, a.owner_name, a.name, a.currency, a.type, a.overdraft_limit,
+                       a.created_at, a.closed_at,
                        COALESCE((SELECT SUM(CASE e.direction WHEN 'DEBIT' THEN e.amount ELSE -e.amount END)
                                  FROM entries e WHERE e.account_id = a.id), 0) AS net,
                        (SELECT COUNT(*) FROM entries e WHERE e.account_id = a.id) AS entry_count
@@ -78,7 +80,7 @@ public class AccountRepository {
 
     /**
      * Locks an account the caller may act on as the SOURCE of a transfer, until the surrounding transaction ends. Every
-     * posting that could lower an account's balance takes this lock first, which serialises those postings.
+     * posting that could lower an account's balance takes this lock first, which serializes those postings.
      *
      * <p>{@code FOR NO KEY UPDATE}, not {@code FOR UPDATE}: inserting an entry for the OTHER account takes a
      * {@code FOR KEY SHARE} lock on that account's row (foreign-key check). {@code FOR UPDATE} conflicts with it,
@@ -103,9 +105,9 @@ public class AccountRepository {
     }
 
     /**
-     * Exclusive lock for closing or deleting an account the caller may act on. {@code FOR UPDATE} conflicts with both locks
-     * transfers take (NO KEY UPDATE on a source, KEY SHARE on a destination), so it waits for in-flight transfers
-     * touching this account and blocks new ones until it commits. The balance read after it is therefore final.
+     * Exclusive lock for closing or deleting an account the caller may act on. {@code FOR UPDATE} conflicts with both
+     * locks that transfers take (NO KEY UPDATE on a source, KEY SHARE on a destination), so it waits for in-flight
+     * transfers touching this account and blocks new ones until it commits. The balance read after it is final.
      */
     public Optional<Account> findVisibleForClose(UUID id, Caller caller) {
         return one("SELECT %s FROM accounts WHERE id = :id AND " + VISIBLE + " FOR UPDATE", id, caller);

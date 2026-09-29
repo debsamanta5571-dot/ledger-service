@@ -19,7 +19,7 @@ test('classifyMavenRun tells success, compile errors, failing tests and other er
   assert.equal(classifyMavenRun(1, '[ERROR] Failed to execute goal something else').status, 'rejected-error');
 });
 
-test('renderVerification summarises results and flags failing tests as possible bugs', () => {
+test('renderVerification summarizes results and flags failing tests as possible bugs', () => {
   const md = renderVerification([
     { source: 'src/main/java/com/ledger/A.java', status: 'verified', testClass: 'AGeneratedTest' },
     { source: 'src/main/java/com/ledger/B.java', status: 'rejected-failing', testClass: 'BGeneratedTest', detail: 'expected 1 | but 2' },

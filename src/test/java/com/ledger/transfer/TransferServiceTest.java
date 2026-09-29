@@ -112,8 +112,10 @@ class TransferServiceTest {
     @Test
     void rejectsATransferThatWouldOverdrawTheSourceAndPostsNothing() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
-        when(accounts.findVisibleForTransferSource(fromId, CALLER)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
-        when(accounts.findForTransferDestination(toId)).thenReturn(Optional.of(account(toId, AccountType.ASSET, "USD", 0)));
+        when(accounts.findVisibleForTransferSource(fromId, CALLER))
+                .thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
+        when(accounts.findForTransferDestination(toId))
+                .thenReturn(Optional.of(account(toId, AccountType.ASSET, "USD", 0)));
         when(accounts.debitsMinusCredits(fromId)).thenReturn(100L);
 
         assertThatThrownBy(() -> service.transfer(CALLER, KEY, request(101)))
@@ -148,8 +150,10 @@ class TransferServiceTest {
     @Test
     void rejectsCurrencyMismatch() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
-        when(accounts.findVisibleForTransferSource(fromId, CALLER)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
-        when(accounts.findForTransferDestination(toId)).thenReturn(Optional.of(account(toId, AccountType.ASSET, "EUR", 0)));
+        when(accounts.findVisibleForTransferSource(fromId, CALLER))
+                .thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
+        when(accounts.findForTransferDestination(toId))
+                .thenReturn(Optional.of(account(toId, AccountType.ASSET, "EUR", 0)));
 
         assertThatThrownBy(() -> service.transfer(CALLER, KEY, request(10)))
                 .isInstanceOf(InvalidTransferException.class)
@@ -160,8 +164,10 @@ class TransferServiceTest {
     @Test
     void rejectsTypeMismatch() {
         when(idempotency.claim(eq(CLIENT), eq(KEY), anyString())).thenReturn(true);
-        when(accounts.findVisibleForTransferSource(fromId, CALLER)).thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
-        when(accounts.findForTransferDestination(toId)).thenReturn(Optional.of(account(toId, AccountType.LIABILITY, "USD", 0)));
+        when(accounts.findVisibleForTransferSource(fromId, CALLER))
+                .thenReturn(Optional.of(account(fromId, AccountType.ASSET, "USD", 0)));
+        when(accounts.findForTransferDestination(toId))
+                .thenReturn(Optional.of(account(toId, AccountType.LIABILITY, "USD", 0)));
 
         assertThatThrownBy(() -> service.transfer(CALLER, KEY, request(10)))
                 .isInstanceOf(InvalidTransferException.class);

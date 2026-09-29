@@ -78,7 +78,7 @@ export default function App() {
     };
   }, []);
 
-  // The credential every request uses. Memoised so it only changes when who-you-are changes.
+  // The credential every request uses. Memoized, so it changes only when the signed-in identity changes.
   const auth = useMemo(() => {
     if (session && user) return oauthCredential(session);
     if (useApiKey && apiKey) return apiKeyCredential(apiKey);
@@ -102,8 +102,8 @@ export default function App() {
     } catch (e) {
       if (latestAuth.current !== auth) return;
       const isRejected = e.status === 401;
-      // Never keep showing data loaded with credentials the server now rejects. Other failures (rate limit, server
-      // down) keep the page as it was and just show the error.
+      // Never keep showing data loaded with credentials that the server now rejects. Other failures (a rate limit,
+      // the server being down) leave the page as it was and just show the error.
       if (isRejected) setAccounts([]);
       setRejected(isRejected);
       if (isRejected && auth.kind === 'oauth') {
@@ -218,8 +218,8 @@ export default function App() {
 
       {user && !user.scopes.includes('accounts:write') && (
         <p className="hint">
-          Your role allows: {user.scopes.filter((s) => s.includes(':')).join(', ') || 'no ledger access'}. Actions it
-          does not cover will be refused.
+          Your role allows: {user.scopes.filter((s) => s.includes(':')).join(', ') || 'no ledger access'}.
+          Actions outside that will be refused.
         </p>
       )}
       {error && <p className="error">{error}</p>}

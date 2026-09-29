@@ -97,7 +97,8 @@ class PersonalApiKeysIT extends AbstractIntegrationTest {
         JsonNode created = createKey(user, "{\"name\":\"once\"}");
         String key = created.get("key").asText();
 
-        String listed = bearer(user, get("/api-keys")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String listed = bearer(user, get("/api-keys")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
         assertThat(listed).contains(created.get("id").asText()).doesNotContain(key);
         String stored = jdbc.queryForObject("SELECT key_hash FROM api_keys WHERE id = ?::uuid", String.class,
                 created.get("id").asText());
@@ -149,7 +150,8 @@ class PersonalApiKeysIT extends AbstractIntegrationTest {
 
     @Test
     void onlyAnAdminCanOpenAnAccountForSomeoneElse() throws Exception {
-        String body = "{\"name\":\"For you\",\"currency\":\"USD\",\"type\":\"ASSET\",\"ownerId\":\"user:%s\",\"ownerName\":\"Kay Keyholder\"}"
+        String body = ("{\"name\":\"For you\",\"currency\":\"USD\",\"type\":\"ASSET\","
+                + "\"ownerId\":\"user:%s\",\"ownerName\":\"Kay Keyholder\"}")
                 .formatted(userSub);
         bearer(user, post("/accounts").contentType(MediaType.APPLICATION_JSON).content(
                         body.replace(userSub, "somebody-else")))
@@ -167,7 +169,8 @@ class PersonalApiKeysIT extends AbstractIntegrationTest {
     @Test
     void ownerIdMustBeAnIdentityUser() throws Exception {
         bearer(admin, post("/accounts").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"x\",\"currency\":\"USD\",\"type\":\"ASSET\",\"ownerId\":\"" + apiKeyOwner() + "\"}"))
+                        .content("{\"name\":\"x\",\"currency\":\"USD\",\"type\":\"ASSET\",\"ownerId\":\""
+                                + apiKeyOwner() + "\"}"))
                 .andExpect(status().isBadRequest());
     }
 

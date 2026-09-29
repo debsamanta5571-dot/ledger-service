@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -66,7 +67,7 @@ class AdminIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$[*].id", hasItem(usersAccount.toString())));
         as(admin, get("/accounts/" + usersAccount))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ownerId").value(org.hamcrest.Matchers.startsWith("user:ursula-")))
+                .andExpect(jsonPath("$.ownerId").value(startsWith("user:ursula-")))
                 .andExpect(jsonPath("$.balance").value(1_000));
         as(admin, get("/accounts/" + usersAccount + "/statements")).andExpect(status().isOk());
     }
@@ -85,11 +86,12 @@ class AdminIT extends AbstractIntegrationTest {
     @Test
     void normalUserStillSeesOnlyTheirOwn() throws Exception {
         UUID someoneElses = newAccount(AccountType.ASSET); // owned by the API key
-        as(user, get("/accounts?limit=100")).andExpect(jsonPath("$[*].ownerId", everyItem(org.hamcrest.Matchers.startsWith("user:ursula-"))));
+        as(user, get("/accounts?limit=100"))
+                .andExpect(jsonPath("$[*].ownerId", everyItem(startsWith("user:ursula-"))));
         as(user, get("/accounts/" + someoneElses)).andExpect(status().isNotFound());
         // ?mine=false does not widen a normal user's view.
         as(user, get("/accounts?limit=100&mine=false"))
-                .andExpect(jsonPath("$[*].ownerId", everyItem(org.hamcrest.Matchers.startsWith("user:ursula-"))));
+                .andExpect(jsonPath("$[*].ownerId", everyItem(startsWith("user:ursula-"))));
     }
 
     @Test
@@ -97,7 +99,8 @@ class AdminIT extends AbstractIntegrationTest {
         UUID destination = newAccount(AccountType.ASSET);
 
         as(admin, post("/transfers").header("Idempotency-Key", newKey()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"fromAccountId\":\"%s\",\"toAccountId\":\"%s\",\"amount\":250,\"currency\":\"USD\",\"description\":\"correction\"}"
+                        .content(("{\"fromAccountId\":\"%s\",\"toAccountId\":\"%s\",\"amount\":250,"
+                                + "\"currency\":\"USD\",\"description\":\"correction\"}")
                                 .formatted(usersAccount, destination)))
                 .andExpect(status().isCreated());
 

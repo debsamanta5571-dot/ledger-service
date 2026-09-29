@@ -6,7 +6,7 @@ const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 export function generatePassword(length = 20, cryptoImpl = globalThis.crypto) {
   const out = [];
   // Rejection sampling: only bytes below the largest multiple of the alphabet size, so every character is equally
-  // likely (a plain "byte % 55" would favour the first characters).
+  // likely (a plain "byte % 55" would favor the first characters).
   const limit = 256 - (256 % ALPHABET.length);
   while (out.length < length) {
     for (const b of cryptoImpl.getRandomValues(new Uint8Array(length * 2))) {

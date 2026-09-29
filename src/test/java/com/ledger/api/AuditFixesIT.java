@@ -13,7 +13,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** Regression tests for the behaviour fixed in the code audit (V4 migration, key rotation, lock timeout). */
+/** Regression tests for the behavior fixed in the code audit (V4 migration, key rotation, lock timeout). */
 class AuditFixesIT extends AbstractIntegrationTest {
 
     @Autowired ApiKeyRepository keys;

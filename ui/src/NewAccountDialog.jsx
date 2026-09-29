@@ -4,9 +4,9 @@ import { parseMajor } from './money.js';
 import { generatePassword } from './passwords.js';
 
 const ROLES = [
-  { value: 'operator', label: 'Normal user (operator): own accounts, can send money' },
-  { value: 'auditor', label: 'Read-only (auditor)' },
-  { value: 'admin', label: 'Admin: every account, and user management' },
+  { value: 'operator', label: 'Operator (normal user): manages their own accounts and sends money' },
+  { value: 'auditor', label: 'Auditor: read-only access' },
+  { value: 'admin', label: 'Admin: all accounts, plus user management' },
 ];
 
 /**
@@ -44,14 +44,14 @@ export default function NewAccountDialog({ open, onClose, auth, identity, canCre
   async function submit(e) {
     e.preventDefault();
     const overdraftLimit = parseMajor(form.overdraft);
-    if (overdraftLimit === null) return setError('Overdraft limit must be an amount like 100 or 100.50');
-    if (form.withLogin && form.password.length < 12) return setError('The password needs at least 12 characters');
+    if (overdraftLimit === null) return setError('The overdraft limit must be an amount, such as 100 or 100.50.');
+    if (form.withLogin && form.password.length < 12) return setError('The password needs at least 12 characters.');
 
     setBusy(true);
     setError(null);
     const done = { steps: [] };
     try {
-      // 1. The person (optional). Their identity-service id becomes the account owner "user:<id>".
+      // 1. The person (optional). Their identity-service ID makes them the account owner, "user:<id>".
       let owner = null;
       if (form.withLogin) {
         const person = await identity.createUser({
@@ -61,7 +61,12 @@ export default function NewAccountDialog({ open, onClose, auth, identity, canCre
           roles: [form.role],
         });
         owner = { ownerId: `user:${person.id}`, ownerName: person.displayName };
-        done.person = { email: person.email, displayName: person.displayName, role: form.role, password: form.password };
+        done.person = {
+          email: person.email,
+          displayName: person.displayName,
+          role: form.role,
+          password: form.password,
+        };
         done.steps.push(`Sign-in account created for ${person.email}`);
       }
 
@@ -85,7 +90,7 @@ export default function NewAccountDialog({ open, onClose, auth, identity, canCre
       setResult(done);
       onCreated?.();
     } catch (err) {
-      // Show what already happened, so a partial success is not repeated by accident.
+      // Report what already succeeded, so a partial success is not repeated by accident.
       setError(describeError(err));
       if (done.steps.length) setResult({ ...done, partial: true });
       onCreated?.();
@@ -224,7 +229,7 @@ function Result({ result, error, onClose }) {
   const secrets = !!(result.person || result.key);
   return (
     <div>
-      <h2 id="new-account-title">{result.partial ? 'Partly done' : 'Done'}</h2>
+      <h2 id="new-account-title">{result.partial ? 'Partially complete' : 'Done'}</h2>
       <ul>
         {result.steps.map((s) => (
           <li key={s}>{s}</li>
@@ -234,11 +239,13 @@ function Result({ result, error, onClose }) {
       {result.person && (
         <Secret label={`Password for ${result.person.email}`} value={result.person.password} />
       )}
-      {result.key && <Secret label={`API key "${result.key.name}" (send it as the X-API-Key header)`} value={result.key.key} />}
+      {result.key && (
+        <Secret label={`API key "${result.key.name}" (send it in the X-API-Key header)`} value={result.key.key} />
+      )}
       {secrets && (
         <p className="warning">
-          Copy these now. They are not stored anywhere readable and cannot be shown again (a lost API key can be revoked
-          and replaced).
+          Copy these now. They are not stored anywhere readable and cannot be shown again. (A lost API key can be
+          revoked and replaced.)
         </p>
       )}
       <div className="row actions-row">

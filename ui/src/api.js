@@ -11,7 +11,7 @@ export class ApiError extends Error {
 }
 
 /**
- * How to authenticate. Either a signed-in user (Bearer access token from the identity service) or an API key.
+ * How to authenticate: either as a signed-in user (a bearer access token from the identity service) or with an API key.
  * `headers()` is async because a user's token may need refreshing first.
  */
 export function apiKeyCredential(key) {
@@ -23,7 +23,9 @@ export function oauthCredential(session) {
     kind: 'oauth',
     headers: async () => {
       const token = await session.getAccessToken();
-      if (!token) throw new ApiError(401, { title: 'Signed out', detail: 'Your sign-in has expired. Please sign in again.' });
+      if (!token) {
+        throw new ApiError(401, { title: 'Signed out', detail: 'Your sign-in has expired. Please sign in again.' });
+      }
       return { Authorization: `Bearer ${token}` };
     },
   };
@@ -77,7 +79,8 @@ export function identityClient(identityUrl, auth) {
         const fields = data?.errors && !Array.isArray(data.errors)
           ? Object.entries(data.errors).map(([field, msgs]) => ({ field, message: [].concat(msgs).join(' ') }))
           : undefined;
-        throw new ApiError(res.status, { ...data, title: data?.title ?? 'Could not create the sign-in account', errors: fields });
+        const title = data?.title ?? 'Could not create the sign-in account';
+        throw new ApiError(res.status, { ...data, title, errors: fields });
       }
       return data;
     },

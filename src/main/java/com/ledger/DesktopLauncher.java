@@ -12,9 +12,9 @@ import org.springframework.boot.web.server.PortInUseException;
 
 /**
  * Entry point used by the packaged Ledger.exe ({@code -Dledger.desktop=true}). The exe runs in a console window
- * that Windows closes the moment the process exits, so a failed start used to vanish without a word. This:
+ * that Windows closes the moment the process exits, so a failed start used to vanish without a word. This launcher:
  * <ul>
- *   <li>detects that Ledger is already running and just opens the browser at it instead of failing on the port;</li>
+ *   <li>notices when Ledger is already running and opens the browser at it, instead of failing on the busy port;</li>
  *   <li>explains a failed start in plain language and keeps the window open until Enter is pressed.</li>
  * </ul>
  */
@@ -54,7 +54,8 @@ final class DesktopLauncher {
     static String explain(Throwable failure, String port) {
         for (Throwable t = failure; t != null; t = t.getCause()) {
             if (t instanceof PortInUseException) {
-                return "Port " + port + " is already used by another program. Close it and start Ledger again.";
+                return "Port " + port + " is already in use by another program. "
+                        + "Close that program and start Ledger again.";
             }
             String message = String.valueOf(t.getMessage());
             if (t instanceof ConnectException || message.contains("Connection to")
@@ -63,10 +64,10 @@ final class DesktopLauncher {
                         + "in the ledger-service folder, and start Ledger again.";
             }
             if (message.contains("password authentication failed")) {
-                return "The database rejected the login. Check DB_USER / DB_PASSWORD.";
+                return "The database rejected the login. Check DB_USER and DB_PASSWORD.";
             }
         }
-        return "Unexpected error: " + failure + " (the log above has the details).";
+        return "Unexpected error: " + failure + ". See the log above for details.";
     }
 
     private static boolean isLedgerRunning(String healthUrl) {

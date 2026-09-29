@@ -44,7 +44,8 @@ public class StatementService {
             throw new InvalidRequestException("'size' must be between 1 and " + MAX_PAGE_SIZE);
         }
 
-        Account account = accounts.findVisible(accountId, caller).orElseThrow(() -> new AccountNotFoundException(accountId));
+        Account account = accounts.findVisible(accountId, caller)
+                .orElseThrow(() -> new AccountNotFoundException(accountId));
         OffsetDateTime start = effectiveFrom.atStartOfDay().atOffset(ZoneOffset.UTC);
         OffsetDateTime endExclusive = effectiveTo.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
 

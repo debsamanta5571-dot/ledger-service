@@ -3,7 +3,16 @@ import { api, describeError } from './api.js';
 import { formatMinor } from './money.js';
 import NewAccountDialog from './NewAccountDialog.jsx';
 
-export default function AccountsPanel({ auth, identity, canCreateUsers, isAdmin, me, accounts, onChanged, onViewStatement }) {
+export default function AccountsPanel({
+  auth,
+  identity,
+  canCreateUsers,
+  isAdmin,
+  me,
+  accounts,
+  onChanged,
+  onViewStatement,
+}) {
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -61,7 +70,7 @@ export default function AccountsPanel({ auth, identity, canCreateUsers, isAdmin,
             <th>Currency</th>
             <th className="num">Overdraft</th>
             <th className="num">Balance</th>
-            <th>Id</th>
+            <th>ID</th>
             <th></th>
           </tr>
         </thead>
@@ -106,12 +115,12 @@ export default function AccountsPanel({ auth, identity, canCreateUsers, isAdmin,
  */
 function AccountActions({ account, busy, onViewStatement, onClose, onDelete }) {
   const closeBlocked = account.closedAt
-    ? 'already closed'
+    ? 'Already closed.'
     : account.balance !== 0
-      ? 'balance must be zero'
+      ? 'The balance must be zero.'
       : null;
   const deleteBlocked =
-    account.entryCount > 0 ? `has ${account.entryCount} ledger entries, which are kept forever` : null;
+    account.entryCount > 0 ? `It has ${account.entryCount} ledger entries, which are kept forever.` : null;
 
   const ref = useRef(null);
   const [copied, setCopied] = useState(false);
@@ -122,7 +131,7 @@ function AccountActions({ account, busy, onViewStatement, onClose, onDelete }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard needs a secure context (localhost counts); fall back to showing the id.
+      // The clipboard needs a secure context (localhost counts); otherwise, show the ID to copy by hand.
       window.prompt('Account ID', account.id);
     }
   }
@@ -157,7 +166,7 @@ function AccountActions({ account, busy, onViewStatement, onClose, onDelete }) {
         </button>
         <button type="button" role="menuitem" onClick={copyId}>
           {copied ? 'Copied!' : 'Copy account ID'}
-          <small>share it so others can pay into this account</small>
+          <small>Share it so others can pay into this account.</small>
         </button>
         <button type="button" role="menuitem" onClick={pick(onClose)} disabled={busy || !!closeBlocked}>
           Close account

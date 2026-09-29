@@ -5,11 +5,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * {@code ledger.auth.bootstrap-api-key}: if set, a key with this value is registered on startup so a fresh
- * deployment is usable. Further keys are managed directly in the {@code api_keys} table.
+ * {@code ledger.auth.bootstrap-api-key}: if set, a service key with this value is registered on startup, so a fresh
+ * deployment is usable. People create their own personal keys through {@code POST /api-keys}.
  *
- * <p>{@code ledger.auth.api-key-scopes}: the scopes every API key carries. Keys are a legacy machine
- * credential with no per-key scopes, so the default is read-only; writes need a scoped bearer token.
+ * <p>{@code ledger.auth.api-key-scopes}: the scopes of service keys such as the bootstrap key. The default is
+ * read-only, so writing needs either a personal key or a scoped bearer token. Personal keys carry their own scopes.
  */
 @ConfigurationProperties(prefix = "ledger.auth")
 public record AuthProperties(
