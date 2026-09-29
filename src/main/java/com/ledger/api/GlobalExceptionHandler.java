@@ -1,6 +1,7 @@
 package com.ledger.api;
 
 import com.ledger.account.AccountClosedException;
+import com.ledger.account.AccountHasHistoryException;
 import com.ledger.account.AccountNotEmptyException;
 import com.ledger.account.AccountNotFoundException;
 import com.ledger.ledger.InsufficientFundsException;
@@ -46,6 +47,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail accountNotEmpty(AccountNotEmptyException e) {
         ProblemDetail p = problem(HttpStatus.CONFLICT, "account-not-empty", "Account not empty", e.getMessage());
         p.setProperty("balance", e.balance());
+        return p;
+    }
+
+    @ExceptionHandler(AccountHasHistoryException.class)
+    ProblemDetail accountHasHistory(AccountHasHistoryException e) {
+        ProblemDetail p = problem(HttpStatus.CONFLICT, "account-has-history", "Account has history", e.getMessage());
+        p.setProperty("entryCount", e.entryCount());
         return p;
     }
 

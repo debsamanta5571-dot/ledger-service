@@ -42,12 +42,19 @@ public class AccountController {
     }
 
     /**
-     * Closes the account (it is never deleted: its history is append-only). 204 on success and when it was already
-     * closed; 409 if its balance is not zero; 404 if it does not exist.
+     * Without {@code permanent}: closes the account, which keeps its history. 204 on success and when already
+     * closed; 409 if the balance is not zero.
+     *
+     * <p>With {@code permanent=true}: deletes the account for good, which is only allowed if it has never had a
+     * transaction (409 otherwise, since its entries are append-only history). 404 if it does not exist.
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> close(@PathVariable UUID id) {
-        service.close(id);
+    public ResponseEntity<Void> delete(@PathVariable UUID id, @RequestParam(defaultValue = "false") boolean permanent) {
+        if (permanent) {
+            service.deletePermanently(id);
+        } else {
+            service.close(id);
+        }
         return ResponseEntity.noContent().build();
     }
 

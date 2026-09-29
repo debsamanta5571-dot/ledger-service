@@ -19,6 +19,7 @@ export default function App() {
   const [accounts, setAccounts] = useState([]);
   const [error, setError] = useState(null);
   const [keyRejected, setKeyRejected] = useState(false);
+  const [statementAccountId, setStatementAccountId] = useState('');
   const latestKey = useRef(apiKey);
   latestKey.current = apiKey;
 
@@ -76,9 +77,22 @@ export default function App() {
 
       {apiKey && !keyRejected ? (
         <>
-          <AccountsPanel apiKey={apiKey} accounts={accounts} onChanged={refresh} />
+          <AccountsPanel
+            apiKey={apiKey}
+            accounts={accounts}
+            onChanged={refresh}
+            onViewStatement={(id) => {
+              setStatementAccountId(id);
+              document.getElementById('statement')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
           <TransferPanel apiKey={apiKey} accounts={accounts} onChanged={refresh} />
-          <StatementPanel apiKey={apiKey} accounts={accounts} />
+          <StatementPanel
+            apiKey={apiKey}
+            accounts={accounts}
+            accountId={statementAccountId}
+            onAccountChange={setStatementAccountId}
+          />
         </>
       ) : (
         <p>{apiKey ? 'Fix the API key above to continue.' : 'Enter an API key to begin.'}</p>

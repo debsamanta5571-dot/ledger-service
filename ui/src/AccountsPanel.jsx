@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, describeError } from './api.js';
 import { formatMinor, parseMajor } from './money.js';
 
-export default function AccountsPanel({ apiKey, accounts, onChanged }) {
+export default function AccountsPanel({ apiKey, accounts, onChanged, onViewStatement }) {
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [type, setType] = useState('ASSET');
   const [overdraft, setOverdraft] = useState('0');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [closing, setClosing] = useState(null);
+  const [pending, setPending] = useState(null);
 
   async function create(e) {
     e.preventDefault();
@@ -31,21 +31,31 @@ export default function AccountsPanel({ apiKey, accounts, onChanged }) {
     }
   }
 
-  async function close(account) {
-    if (!window.confirm(`Close "${account.name}"? It stays in the records but can no longer send or receive money.`)) {
-      return;
-    }
-    setClosing(account.id);
+  async function run(account, { confirmText, path }) {
+    if (!window.confirm(confirmText)) return;
+    setPending(account.id);
     try {
-      await api(apiKey, `/accounts/${account.id}`, { method: 'DELETE' });
+      await api(apiKey, path, { method: 'DELETE' });
       setError(null);
       await onChanged();
     } catch (err) {
       setError(describeError(err));
     } finally {
-      setClosing(null);
+      setPending(null);
     }
   }
+
+  const close = (a) =>
+    run(a, {
+      confirmText: `Close "${a.name}"? It stays in the records but can no longer send or receive money.`,
+      path: `/accounts/${a.id}`,
+    });
+
+  const deleteForGood = (a) =>
+    run(a, {
+      confirmText: `Permanently delete "${a.name}"? This cannot be undone.`,
+      path: `/accounts/${a.id}?permanent=true`,
+    });
 
   return (
     <section>
@@ -100,16 +110,13 @@ export default function AccountsPanel({ apiKey, accounts, onChanged }) {
               <td className={`num ${a.balance < 0 ? 'neg' : ''}`}>{formatMinor(a.balance)}</td>
               <td className="mono">{a.id.slice(0, 8)}</td>
               <td>
-                {!a.closedAt && (
-                  <button
-                    type="button"
-                    onClick={() => close(a)}
-                    disabled={a.balance !== 0 || closing === a.id}
-                    title={a.balance !== 0 ? 'Only an account with a zero balance can be closed' : 'Close this account'}
-                  >
-                    Close
-                  </button>
-                )}
+                <AccountActions
+                  account={a}
+                  busy={pending === a.id}
+                  onViewStatement={() => onViewStatement(a.id)}
+                  onClose={() => close(a)}
+                  onDelete={() => deleteForGood(a)}
+                />
               </td>
             </tr>
           ))}
@@ -121,5 +128,67 @@ export default function AccountsPanel({ apiKey, accounts, onChanged }) {
         </tbody>
       </table>
     </section>
+  );
+}
+
+/**
+ * Per-account "Actions" menu. Every option is always listed; one that does not apply is disabled with the reason
+ * next to it, so the rules (zero balance to close, no history to delete) are visible rather than surprising.
+ */
+function AccountActions({ account, busy, onViewStatement, onClose, onDelete }) {
+  const closeBlocked = account.closedAt
+    ? 'already closed'
+    : account.balance !== 0
+      ? 'balance must be zero'
+      : null;
+  const deleteBlocked =
+    account.entryCount > 0 ? `has ${account.entryCount} ledger entries, which are kept forever` : null;
+
+  const ref = useRef(null);
+  // <details> does not close itself on an outside click or Escape; do that here.
+  useEffect(() => {
+    const closeUnlessInside = (e) => {
+      if (ref.current?.open && !ref.current.contains(e.target)) ref.current.removeAttribute('open');
+    };
+    const closeOnEscape = (e) => {
+      if (e.key === 'Escape') ref.current?.removeAttribute('open');
+    };
+    document.addEventListener('click', closeUnlessInside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('click', closeUnlessInside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, []);
+
+  // <details> gives an accessible expand/collapse without extra dependencies; close it after picking an option.
+  const pick = (action) => (e) => {
+    e.currentTarget.closest('details')?.removeAttribute('open');
+    action();
+  };
+
+  return (
+    <details className="actions" ref={ref}>
+      <summary aria-label={`Actions for ${account.name}`}>{busy ? 'Working…' : 'Actions'}</summary>
+      <div className="menu" role="menu">
+        <button type="button" role="menuitem" onClick={pick(onViewStatement)}>
+          View statement
+        </button>
+        <button type="button" role="menuitem" onClick={pick(onClose)} disabled={busy || !!closeBlocked}>
+          Close account
+          {closeBlocked && <small>{closeBlocked}</small>}
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          className="danger"
+          onClick={pick(onDelete)}
+          disabled={busy || !!deleteBlocked}
+        >
+          Delete permanently
+          {deleteBlocked && <small>{deleteBlocked}</small>}
+        </button>
+      </div>
+    </details>
   );
 }

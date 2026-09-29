@@ -4,14 +4,17 @@ import { formatMinor } from './money.js';
 
 const PAGE_SIZE = 10;
 
-export default function StatementPanel({ apiKey, accounts }) {
-  const [accountId, setAccountId] = useState('');
+export default function StatementPanel({ apiKey, accounts, accountId, onAccountChange }) {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(0);
   const [statement, setStatement] = useState(null);
   const [error, setError] = useState(null);
   const requestSeq = useRef(0);
+
+  useEffect(() => {
+    setPage(0);
+  }, [accountId]);
 
   const load = useCallback(async () => {
     if (!accountId) {
@@ -52,10 +55,10 @@ export default function StatementPanel({ apiKey, accounts }) {
   }
 
   return (
-    <section>
+    <section id="statement">
       <h2>Statement</h2>
       <div className="row">
-        <select value={accountId} onChange={changeFilter(setAccountId)} aria-label="Account">
+        <select value={accountId} onChange={changeFilter(onAccountChange)} aria-label="Account">
           <option value="">Account…</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>

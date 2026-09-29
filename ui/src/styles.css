@@ -73,3 +73,61 @@ tr.closed td {
   border-radius: 8px;
   font-size: 0.75em;
 }
+details.actions {
+  position: relative;
+}
+details.actions > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 10px;
+  border: 1px solid #8886;
+  border-radius: 4px;
+  user-select: none;
+  white-space: nowrap;
+}
+details.actions > summary::-webkit-details-marker {
+  display: none;
+}
+details.actions > summary::after {
+  content: ' ▾';
+}
+details.actions[open] > summary::after {
+  content: ' ▴';
+}
+details.actions .menu {
+  position: absolute;
+  right: 0;
+  z-index: 10;
+  min-width: 220px;
+  margin-top: 4px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: Canvas;
+  border: 1px solid #8886;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px #0003;
+}
+details.actions .menu button {
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: inherit;
+}
+details.actions .menu button:hover:not(:disabled) {
+  background: #8882;
+}
+details.actions .menu button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+details.actions .menu button small {
+  display: block;
+  font-size: 0.75em;
+}
+details.actions .menu .danger:not(:disabled) {
+  color: #c62828;
+}

@@ -181,6 +181,7 @@ An error response is `application/problem+json`, for example:
 | `POST /accounts` | `name`, `currency` (ISO 4217), `type`, optional `overdraftLimit` → 201 |
 | `GET /accounts` / `GET /accounts/{id}` | list of open accounts (newest first, `limit` ≤ 100, `includeClosed=true` for all) / one account with derived balance |
 | `DELETE /accounts/{id}` | **closes** the account: 204 (also if already closed), 409 if the balance is not zero |
+| `DELETE /accounts/{id}?permanent=true` | deletes it for good: 204 only if it has **never** had a transaction, otherwise 409 |
 | `GET /accounts/{id}/statement` | `from`, `to` (inclusive UTC dates), `page`, `size` ≤ 100; opening/closing balance and a running balance per entry |
 | `POST /transfers` | requires `Idempotency-Key`; 201 / 404 / 409 / 422 |
 | `GET /health` | database connectivity; no auth |
@@ -241,10 +242,16 @@ The request is hashed from the *parsed* body (not raw bytes), so whitespace or f
 retry into a spurious `409`. Keys are scoped per API key, so one client can never replay another's response.
 Not implemented: expiry of old keys (a purge job would be needed at scale).
 
-### Removing an account means closing it
+### Removing an account: close it, or delete it only if it was never used
 Entries are append-only, so an account is never deleted: that would break its entries' foreign keys or erase its
 history. `DELETE /accounts/{id}` sets `closed_at` instead. It is refused unless the balance is exactly zero (no
 stranded money); a closed account keeps its statement but is hidden from listings and cannot send or receive.
+
+`?permanent=true` really deletes the row, but only for an account with **no entries at all** (a typo, a test
+account). Nothing is lost in that case. An account with history is refused (`409 account-has-history`), even at a
+zero balance, because its entries must keep saying whose they are. Deleting takes the same exclusive lock as
+closing, so a transfer arriving at that moment either lands first (and the delete is refused) or finds no account
+(`404`); a test races the two.
 
 The race that matters is a transfer *into* the account landing while it is being closed. Closing takes
 `FOR UPDATE`; transfers take `FOR NO KEY UPDATE` on the source and `FOR KEY SHARE` on the destination, and both

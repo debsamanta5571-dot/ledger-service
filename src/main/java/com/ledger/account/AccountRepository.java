@@ -41,7 +41,7 @@ public class AccountRepository {
                 .optional();
     }
 
-    public record AccountWithNet(Account account, long debitsMinusCredits) {
+    public record AccountWithNet(Account account, long debitsMinusCredits, long entryCount) {
     }
 
     /** Most recently created accounts first, each with its derived balance. Closed ones only if asked for. */
@@ -49,14 +49,15 @@ public class AccountRepository {
         return jdbc.sql("""
                 SELECT a.id, a.name, a.currency, a.type, a.overdraft_limit, a.created_at, a.closed_at,
                        COALESCE((SELECT SUM(CASE e.direction WHEN 'DEBIT' THEN e.amount ELSE -e.amount END)
-                                 FROM entries e WHERE e.account_id = a.id), 0) AS net
+                                 FROM entries e WHERE e.account_id = a.id), 0) AS net,
+                       (SELECT COUNT(*) FROM entries e WHERE e.account_id = a.id) AS entry_count
                 FROM (SELECT * FROM accounts WHERE closed_at IS NULL OR :includeClosed
                       ORDER BY created_at DESC, id LIMIT :limit) a
                 ORDER BY a.created_at DESC, a.id
                 """)
                 .param("limit", limit)
                 .param("includeClosed", includeClosed)
-                .query((rs, n) -> new AccountWithNet(map(rs, n), rs.getLong("net")))
+                .query((rs, n) -> new AccountWithNet(map(rs, n), rs.getLong("net"), rs.getLong("entry_count")))
                 .list();
     }
 
@@ -114,6 +115,18 @@ public class AccountRepository {
         jdbc.sql("UPDATE accounts SET closed_at = clock_timestamp() WHERE id = :id AND closed_at IS NULL")
                 .param("id", id)
                 .update();
+    }
+
+    public long entryCount(UUID accountId) {
+        return jdbc.sql("SELECT COUNT(*) FROM entries WHERE account_id = :id")
+                .param("id", accountId)
+                .query(Long.class)
+                .single();
+    }
+
+    /** Hard delete. Callers must hold {@link #findByIdForClose}'s lock and have checked there are no entries. */
+    public void delete(UUID id) {
+        jdbc.sql("DELETE FROM accounts WHERE id = :id").param("id", id).update();
     }
 
     /** sum(debits) - sum(credits) over the journal; the balance is always derived, never stored. */

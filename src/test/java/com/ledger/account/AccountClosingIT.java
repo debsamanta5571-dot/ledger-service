@@ -95,6 +95,89 @@ class AccountClosingIT extends AbstractIntegrationTest {
         assertThat(normalBalance(open)).isEqualTo(100);
     }
 
+    private int deletePermanently(UUID id) throws Exception {
+        return mvc.perform(delete("/accounts/" + id + "?permanent=true")).andReturn().getResponse().getStatus();
+    }
+
+    @Test
+    void neverUsedAccountIsDeletedForGood() throws Exception {
+        UUID unused = newAccount(AccountType.ASSET);
+        mvc.perform(get("/accounts/" + unused)).andExpect(jsonPath("$.entryCount").value(0));
+
+        assertThat(deletePermanently(unused)).isEqualTo(204);
+
+        mvc.perform(get("/accounts/" + unused)).andExpect(status().isNotFound());
+        mvc.perform(get("/accounts?limit=100&includeClosed=true"))
+                .andExpect(jsonPath("$[*].id", not(hasItem(unused.toString()))));
+        assertThat(deletePermanently(unused)).isEqualTo(404);
+    }
+
+    @Test
+    void closedButNeverUsedAccountCanAlsoBeDeleted() throws Exception {
+        UUID unused = newAccount(AccountType.LIABILITY);
+        assertThat(close(unused)).isEqualTo(204);
+        assertThat(deletePermanently(unused)).isEqualTo(204);
+    }
+
+    @Test
+    void accountWithHistoryCannotBeDeletedEvenAtZeroBalance() throws Exception {
+        UUID from = newAccount(AccountType.ASSET);
+        UUID used = newAccount(AccountType.ASSET);
+        fund(from, AccountType.ASSET, 100);
+        postTransfer(newKey(), from, used, 100).andExpect(status().isCreated());
+        postTransfer(newKey(), used, from, 100).andExpect(status().isCreated()); // zero balance, but 2 entries
+
+        mvc.perform(delete("/accounts/" + used + "?permanent=true"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("urn:ledger:problem:account-has-history"))
+                .andExpect(jsonPath("$.entryCount").value(2));
+
+        mvc.perform(get("/accounts/" + used)).andExpect(status().isOk());
+        assertThat(entryCount(used)).isEqualTo(2);
+        assertThat(close(used)).as("closing is the way out for a used account").isEqualTo(204);
+    }
+
+    /** Deleting while transfers arrive: either the account goes before any lands (they then get 404) or it stays. */
+    @Test
+    void deleteRacingIncomingTransfersNeverLosesMoneyOrErrors() throws Exception {
+        for (int round = 0; round < 10; round++) {
+            UUID source = newAccount(AccountType.ASSET);
+            fund(source, AccountType.ASSET, 1_000);
+            UUID target = newAccount(AccountType.ASSET);
+
+            ExecutorService pool = Executors.newFixedThreadPool(10);
+            CountDownLatch go = new CountDownLatch(1);
+            List<Future<Integer>> transfers = new ArrayList<>();
+            List<Future<Integer>> deletes = new ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                if (i % 2 == 0) {
+                    transfers.add(pool.submit(() -> {
+                        go.await();
+                        return postTransfer(newKey(), source, target, 10).andReturn().getResponse().getStatus();
+                    }));
+                } else {
+                    deletes.add(pool.submit(() -> {
+                        go.await();
+                        return deletePermanently(target);
+                    }));
+                }
+            }
+            go.countDown();
+            for (Future<Integer> f : transfers) {
+                assertThat(f.get()).isIn(201, 404);
+            }
+            for (Future<Integer> f : deletes) {
+                assertThat(f.get()).isIn(204, 404, 409);
+            }
+            pool.shutdown();
+
+            boolean exists = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM accounts WHERE id = ?)",
+                    Boolean.class, target);
+            long arrived = exists ? normalBalance(target) : 0;
+            assertThat(normalBalance(source) + arrived).as("round %d: money lost", round).isEqualTo(1_000);
+        }
+    }
+
     /**
      * The race the locking exists for: transfers INTO an account racing with attempts to close it. Without the
      * destination lock a transfer could check "open", the close could commit at balance 0, and the credit would then
