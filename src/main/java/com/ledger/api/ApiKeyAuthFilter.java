@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -59,7 +60,17 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             chain.doFilter(request, response); // no API key: a bearer token (or a 401) is next
             return;
         }
-        Optional<ApiKey> key = keys.findActiveByHash(ApiKeyHasher.sha256Hex(presented));
+        Optional<ApiKey> key;
+        try {
+            key = keys.findActiveByHash(ApiKeyHasher.sha256Hex(presented));
+        } catch (DataAccessException e) {
+            // The key cannot be checked because the database is unreachable. Say so: letting this escape used to
+            // surface as "401 Unauthorized", which sent users off to fix a perfectly good key.
+            response.setHeader("Retry-After", "5");
+            ProblemResponse.write(json, request, response, HttpStatus.SERVICE_UNAVAILABLE, "service-unavailable",
+                    "Service unavailable", "The ledger database is unreachable; try again shortly");
+            return;
+        }
         if (key.isEmpty()) {
             reject(request, response, HttpStatus.UNAUTHORIZED, "invalid-api-key", "Invalid API key",
                     "The API key is not recognised or has been revoked");

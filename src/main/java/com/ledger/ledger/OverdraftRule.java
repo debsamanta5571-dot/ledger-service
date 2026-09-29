@@ -12,7 +12,14 @@ public final class OverdraftRule {
      * @param decrease       how much the posting reduces the balance by (> 0)
      */
     public static void check(long balance, long overdraftLimit, long decrease) {
-        long available = balance + overdraftLimit;
+        // Saturate instead of wrapping: a large balance plus a large limit must never overflow into a negative
+        // "available" (which would wrongly refuse a valid transfer) or the reverse.
+        long available;
+        try {
+            available = Math.addExact(balance, overdraftLimit);
+        } catch (ArithmeticException overflow) {
+            available = balance > 0 ? Long.MAX_VALUE : Long.MIN_VALUE;
+        }
         if (decrease > available) {
             throw new InsufficientFundsException(available, decrease);
         }

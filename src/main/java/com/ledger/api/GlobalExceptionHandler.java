@@ -8,8 +8,13 @@ import com.ledger.transfer.InvalidTransferException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -63,6 +68,37 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail invalidRequest(InvalidRequestException e) {
         return problem(HttpStatus.BAD_REQUEST, "invalid-request", "Invalid request", e.getMessage());
     }
+
+    /**
+     * Lock timeouts, deadlocks, and "no database connection" are temporary. The whole transfer rolled back
+     * (including its idempotency claim), so the client can safely retry with the same Idempotency-Key.
+     */
+    @ExceptionHandler(DataAccessException.class)
+    ResponseEntity<ProblemDetail> dataAccess(DataAccessException e) {
+        if (!isTemporary(e)) {
+            return ResponseEntity.internalServerError().body(unexpected(e));
+        }
+        log.warn("Temporary database failure: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, "2")
+                .body(problem(HttpStatus.SERVICE_UNAVAILABLE, "service-unavailable", "Service unavailable",
+                        "The ledger is busy or its database is unreachable; retry the same request shortly"));
+    }
+
+    /**
+     * Spring does not categorise every Postgres "try again" error: a lock timeout (SQL state 55P03) arrives as a
+     * plain {@link UncategorizedSQLException}, so the SQL state is checked too.
+     */
+    static boolean isTemporary(DataAccessException e) {
+        if (e instanceof TransientDataAccessException || e instanceof DataAccessResourceFailureException) {
+            return true;
+        }
+        return e instanceof UncategorizedSQLException u && u.getSQLException() != null
+                && TEMPORARY_SQL_STATES.contains(u.getSQLException().getSQLState());
+    }
+
+    /** lock_not_available, query_canceled (statement/lock timeout), serialization_failure, deadlock_detected. */
+    private static final Set<String> TEMPORARY_SQL_STATES = Set.of("55P03", "57014", "40001", "40P01");
 
     @ExceptionHandler(Exception.class)
     ProblemDetail unexpected(Exception e) {

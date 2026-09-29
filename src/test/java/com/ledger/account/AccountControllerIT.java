@@ -95,6 +95,9 @@ class AccountControllerIT extends AbstractIntegrationTest {
                 "{\"name\":\"x\",\"currency\":\"USD\"}",                            // missing type
                 "{\"name\":\"x\",\"currency\":\"USD\",\"type\":\"EQUITY\"}",        // unknown type
                 "{\"name\":\"x\",\"currency\":\"USD\",\"type\":\"ASSET\",\"overdraftLimit\":-1}",
+                // Audit: both of these used to be accepted (overflow in the overdraft check, unbounded storage).
+                "{\"name\":\"x\",\"currency\":\"USD\",\"type\":\"ASSET\",\"overdraftLimit\":9223372036854775807}",
+                "{\"name\":\"" + "x".repeat(201) + "\",\"currency\":\"USD\",\"type\":\"ASSET\"}",
                 "not json"
         };
         for (String body : bad) {

@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ledger
       POSTGRES_PASSWORD: ledger
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # this PC only: the password is a well-known dev default
     volumes:
       - ledger-data:/var/lib/postgresql/data
     healthcheck:
@@ -34,7 +34,7 @@ services:
       IDENTITY_JWKS_URI: ${IDENTITY_JWKS_URI:-http://host.docker.internal:5001/.well-known/jwks}
       IDENTITY_ISSUER: ${IDENTITY_ISSUER:-https://localhost:5001/}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"   # this PC only: the dev key can write
 
 volumes:
   ledger-data:

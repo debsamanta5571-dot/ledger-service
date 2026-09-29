@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, describeError } from './api.js';
 import { formatMinor } from './money.js';
 
@@ -11,20 +11,25 @@ export default function StatementPanel({ apiKey, accounts }) {
   const [page, setPage] = useState(0);
   const [statement, setStatement] = useState(null);
   const [error, setError] = useState(null);
+  const requestSeq = useRef(0);
 
   const load = useCallback(async () => {
     if (!accountId) {
+      requestSeq.current++;
       setStatement(null);
       return;
     }
     const params = new URLSearchParams({ page: String(page), size: String(PAGE_SIZE) });
     if (from) params.set('from', from);
     if (to) params.set('to', to);
+    const seq = ++requestSeq.current;
     try {
       const { data } = await api(apiKey, `/accounts/${accountId}/statement?${params}`);
+      if (seq !== requestSeq.current) return; // a newer request superseded this one
       setStatement(data);
       setError(null);
     } catch (e) {
+      if (seq !== requestSeq.current) return;
       setStatement(null);
       setError(describeError(e));
     }

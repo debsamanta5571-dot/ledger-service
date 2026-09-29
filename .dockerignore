@@ -5,6 +5,8 @@ target/
 .vscode/
 ui/node_modules/
 ui/dist/
+# Built UI copied in by scripts/build-exe.ps1; the image builds its own in the ui stage.
+src/main/resources/static/
 docs/
 *.md
 docker-compose.yml

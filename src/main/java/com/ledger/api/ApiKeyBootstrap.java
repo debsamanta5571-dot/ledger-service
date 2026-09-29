@@ -19,7 +19,7 @@ public class ApiKeyBootstrap implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         String key = properties.bootstrapApiKey();
         if (key != null && !key.isBlank()) {
-            keys.insertIfAbsent("bootstrap", ApiKeyHasher.sha256Hex(key), properties.bootstrapRateLimitPerMinute());
+            keys.replaceNamedKey("bootstrap", ApiKeyHasher.sha256Hex(key), properties.bootstrapRateLimitPerMinute());
         }
     }
 }

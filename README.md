@@ -86,8 +86,12 @@ JSON. There is no floating point in the money path.
 docker compose up --build
 # API:        http://localhost:8080
 # Swagger UI: http://localhost:8080/swagger-ui
+# UI:         http://localhost:8080/   (built into the image)
 # API key:    dev-local-key   (local default; override with LEDGER_BOOTSTRAP_API_KEY)
 ```
+
+Both ports are published on `127.0.0.1` only: the dev key can write and the database password is a well-known
+default, so neither should be reachable from your network.
 
 ### From source
 
@@ -101,6 +105,17 @@ LEDGER_BOOTSTRAP_API_KEY=dev-local-key mvn spring-boot:run
 ```bash
 cd ui && npm install && npm run dev           # http://localhost:5173, proxies /api to :8080
 ```
+
+### Windows desktop build (Ledger.exe)
+
+```powershell
+powershell -File scriptsuild-exe.ps1      # needs JDK 21, Maven, Node; output: distLedgerLedger.exe
+docker compose up -d db                     # the exe still needs Postgres
+```
+
+`Ledger.exe` bundles its own Java runtime and the UI, listens on `127.0.0.1:8080` only, and opens your browser
+(API key `dev-local-key`). If Ledger is already running it opens the existing instance; if it cannot start (for
+example the database is not running) it says why and waits for Enter instead of closing.
 
 ### Tests
 
@@ -196,6 +211,10 @@ Details that matter:
   Sharding a hot account into sub-accounts would be the next step. This is a deliberate correctness-first choice.
 - **Proved by test:** 50 parallel transfers on one account, released simultaneously, assert exactly the right
   number succeed, the ledger balances, and the balance never dipped below its limit at any point in history.
+- **Bounded waiting:** every connection sets `lock_timeout = 5s`, and the pool gives up after 10 s. A transfer
+  stuck behind a hot account rolls back (its idempotency claim included) and returns a retryable `503` with
+  `Retry-After`, instead of holding a thread and a connection forever. Postgres reports a lock timeout as SQL state
+  `55P03`, which Spring leaves uncategorised, so the handler classifies it by SQL state (covered by a test).
 
 ### Balances are derived, never stored
 `GET /accounts/{id}` computes `SUM(entries)`. There is no balance column that can drift out of sync with the
@@ -290,6 +309,10 @@ dropped: it is either a bad test or a real bug. See `scripts/llm-testgen/`.
 
 ## Known limitations / next steps
 
+- **No per-account ownership.** Authorization is by scope only: any caller with `transfers:write` can move money
+  out of *any* account, and any caller with `accounts:read` can list every account. A real ledger would tie
+  accounts to an owner (for example the token's subject or an organisation claim) and check it on every request.
+  This is the largest gap between this project and production.
 - No deposit/withdrawal against the outside world; fund accounts through an overdraft-enabled treasury account.
 - Single currency per transfer; no FX. `ASSET`/`LIABILITY` only (no equity/revenue/expense).
 - Statement pagination is offset-based; very large date ranges would want keyset pagination or checkpoints.
@@ -298,6 +321,10 @@ dropped: it is either a bad test or a real bug. See `scripts/llm-testgen/`.
   expire within minutes (the identity service issues 10-minute access tokens). Introspection would close that gap
   at the cost of a network call per request.
 - Idempotency keys are never expired.
+- `POST /accounts` is not idempotent, so a double-submitted create makes two accounts.
+- Unknown routes and unsupported methods return `403` rather than `404`/`405`, because anything not listed in
+  `SecurityConfig` is denied before routing. That keeps new endpoints closed by default, at the cost of less precise
+  status codes.
 - Reversals/corrections are done by posting new transactions; there is no dedicated reversal endpoint.
 
 ## Deployment

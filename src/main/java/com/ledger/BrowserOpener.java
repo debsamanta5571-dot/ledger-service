@@ -16,15 +16,19 @@ public class BrowserOpener {
 
     private static final Logger log = LoggerFactory.getLogger(BrowserOpener.class);
 
-    private final int port;
+    private final String url;
 
-    public BrowserOpener(@Value("${server.port:8080}") int port) {
-        this.port = port;
+    public BrowserOpener(@Value("${server.address:localhost}") String host, @Value("${server.port:8080}") int port) {
+        this.url = "http://" + host + ":" + port + "/";
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void open() {
-        String url = "http://localhost:" + port + "/";
+        System.out.println("Ledger is running at " + url + " (close this window to stop it).");
+        open(url);
+    }
+
+    static void open(String url) {
         try {
             new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url).start();
         } catch (IOException e) {

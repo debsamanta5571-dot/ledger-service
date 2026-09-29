@@ -10,6 +10,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class LedgerApplication {
     public static void main(String[] args) {
-        SpringApplication.run(LedgerApplication.class, args);
+        if (Boolean.getBoolean("ledger.desktop")) {
+            DesktopLauncher.run(LedgerApplication.class, args);
+        } else {
+            SpringApplication.run(LedgerApplication.class, args);
+        }
     }
 }

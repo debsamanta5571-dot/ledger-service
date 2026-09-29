@@ -1,6 +1,7 @@
 package com.ledger.api;
 
 import com.nimbusds.jose.JOSEObjectType;
+import jakarta.servlet.DispatcherType;
 import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -44,6 +45,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/health", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                                 "/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
+                        // Boot renders unhandled errors by forwarding to /error. Denying that forward turned every
+                        // server error into a misleading 401/403, so let error rendering through.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/accounts", "/accounts/*").hasAuthority("SCOPE_accounts:read")
                         .requestMatchers(HttpMethod.POST, "/accounts").hasAuthority("SCOPE_accounts:write")
                         .requestMatchers(HttpMethod.GET, "/accounts/*/statement").hasAuthority("SCOPE_transfers:read")

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, describeError } from './api.js';
 import { formatMinor, parseMajor } from './money.js';
+import { newIdempotencyKey } from './ids.js';
 
 export default function TransferPanel({ apiKey, accounts, onChanged }) {
   const [from, setFrom] = useState('');
@@ -11,10 +12,10 @@ export default function TransferPanel({ apiKey, accounts, onChanged }) {
   const [busy, setBusy] = useState(false);
   // One key per logical transfer. It is reused if the user resubmits an unchanged form (say, after a network
   // error), so a retry can never post twice; it is replaced as soon as any field changes or the transfer succeeds.
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey);
 
   useEffect(() => {
-    setIdempotencyKey(crypto.randomUUID());
+    setIdempotencyKey(newIdempotencyKey());
   }, [from, to, amount, description]);
 
   const source = accounts.find((a) => a.id === from);

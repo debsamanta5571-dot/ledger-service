@@ -1,5 +1,6 @@
 # Builds dist\Ledger\Ledger.exe: the API + bundled UI + a private Java runtime (no Java install needed to run it).
 # Requires: JDK 21 (for jpackage), Maven, Node. Run from the repo root:  powershell -File scripts\build-exe.ps1
+# The exe listens on 127.0.0.1 only: its dev key can write, so it must not be reachable from the network.
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
@@ -24,7 +25,9 @@ Write-Host '4/4 Creating the exe with jpackage'
 Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
 jpackage --type app-image --name Ledger --input target --main-jar $jar `
   --dest dist --win-console `
+  --java-options '-Dledger.desktop=true' `
   --java-options '-Dledger.open-browser=true' `
+  --java-options '-Dserver.address=127.0.0.1' `
   --java-options '-Dledger.auth.bootstrap-api-key=dev-local-key' `
   --java-options '-Dledger.auth.api-key-scopes=accounts:read,accounts:write,transfers:read,transfers:write'
 if ($LASTEXITCODE -ne 0) { throw 'jpackage failed' }

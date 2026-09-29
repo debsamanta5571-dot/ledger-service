@@ -5,6 +5,12 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/ledger}
     username: ${DB_USER:ledger}
     password: ${DB_PASSWORD:ledger}
+    hikari:
+      # Fail fast (default is 30 s) when no connection is free or the database is down; callers get a 503.
+      connection-timeout: 10000
+      # Never wait forever on a hot account's row lock. The timed-out transfer rolls back and returns a
+      # retryable 503 instead of holding a request thread and a connection indefinitely.
+      connection-init-sql: SET lock_timeout = '5s'
   flyway:
     enabled: true
     locations: classpath:db/migration

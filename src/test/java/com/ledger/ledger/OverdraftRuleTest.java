@@ -49,6 +49,20 @@ class OverdraftRuleTest {
     }
 
     @Test
+    void hugeBalancePlusHugeLimitDoesNotOverflowIntoARefusal() {
+        // Before the fix, 1 + Long.MAX_VALUE wrapped to a negative "available" and this valid spend was refused.
+        assertThatCode(() -> OverdraftRule.check(1, Long.MAX_VALUE, 100)).doesNotThrowAnyException();
+        assertThatCode(() -> OverdraftRule.check(Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void hugeNegativeBalanceDoesNotOverflowIntoAnApproval() {
+        assertThatThrownBy(() -> OverdraftRule.check(Long.MIN_VALUE, 0, 1))
+                .isInstanceOf(InsufficientFundsException.class);
+    }
+
+    @Test
     void exceptionReportsAvailableAmountIncludingOverdraft() {
         assertThatThrownBy(() -> OverdraftRule.check(100, 50, 200))
                 .isInstanceOfSatisfying(InsufficientFundsException.class, e -> {

@@ -1,11 +1,21 @@
 # syntax=docker/dockerfile:1
 
+# ---- UI stage: build the React app so the image serves the same UI everywhere ----
+FROM node:22-alpine AS ui
+WORKDIR /ui
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY ui/ ./
+# '.' = call the API on the same origin (the service serves the UI itself).
+RUN VITE_API_BASE=. npm run build
+
 # ---- build stage: full JDK + Maven; dependencies resolved in their own cached layer ----
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 COPY pom.xml .
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q dependency:go-offline
 COPY src ./src
+COPY --from=ui /ui/dist ./src/main/resources/static
 # Tests run in CI (they need Docker for Testcontainers); the image build only packages.
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q package -DskipTests
 

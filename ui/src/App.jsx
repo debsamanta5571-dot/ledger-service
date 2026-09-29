@@ -18,6 +18,7 @@ export default function App() {
   const [apiKey, setApiKey] = useState(loadKey);
   const [accounts, setAccounts] = useState([]);
   const [error, setError] = useState(null);
+  const [keyRejected, setKeyRejected] = useState(false);
   const latestKey = useRef(apiKey);
   latestKey.current = apiKey;
 
@@ -31,10 +32,14 @@ export default function App() {
       if (latestKey.current !== apiKey) return; // a newer key was typed while this request was in flight
       setAccounts(data);
       setError(null);
+      setKeyRejected(false);
     } catch (e) {
       if (latestKey.current !== apiKey) return;
-      // Never keep showing data that was loaded with a different (or now-invalid) key.
-      setAccounts([]);
+      const rejected = e.status === 401;
+      // Never keep showing data that was loaded with a key the server now rejects. Other failures (rate limit,
+      // server down) keep the page as it was and just show the error.
+      if (rejected) setAccounts([]);
+      setKeyRejected(rejected);
       setError(describeError(e));
     }
   }, [apiKey]);
@@ -69,7 +74,7 @@ export default function App() {
         {error && <p className="error">{error}</p>}
       </section>
 
-      {apiKey && !error ? (
+      {apiKey && !keyRejected ? (
         <>
           <AccountsPanel apiKey={apiKey} accounts={accounts} onChanged={refresh} />
           <TransferPanel apiKey={apiKey} accounts={accounts} onChanged={refresh} />
