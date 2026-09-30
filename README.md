@@ -468,3 +468,7 @@ ui/                                React + Vite web page
 scripts/                           exe build, coverage summary, LLM test-generation pipeline (with its own tests)
 .github/workflows/                 ci, codeql, dependency-scan, llm-tests
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
