@@ -39,6 +39,7 @@ What it does:
 | To... | You need |
 | --- | --- |
 | Run the ledger and its web page | [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows, macOS or Linux) running, [Git](https://git-scm.com/), a web browser, and ports 8080 and 5432 free |
+| First run | Internet access (it downloads base images and packages) and about 2 GB of free disk space for the images and build cache. The first build takes a few minutes. |
 | Sign in with the demo login (optional) | The [identity service](https://github.com/debsamanta5571-dot/identity-service) cloned next to this repository, a Bash shell with `openssl` (built in on macOS and Linux; on Windows use Git Bash, which comes with Git), and port 5001 free |
 | Build and run the tests | JDK 21, Maven 3.9+, Node 22, and Docker (the integration tests start PostgreSQL with Testcontainers) |
 | Build `Ledger.exe` (optional) | Windows 10 or 11, plus everything in the row above. The finished exe still needs Docker for its database. |
