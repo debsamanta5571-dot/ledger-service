@@ -80,13 +80,19 @@ authorization code flow with PKCE). Run it next to the ledger:
 
 ```bash
 git clone https://github.com/debsamanta5571-dot/identity-service ../identity-service
-cd ../identity-service && ./scripts/dev-secrets.sh    # once: generates .env, including the local admin login
+cd ../identity-service && ./scripts/dev-secrets.sh    # once: generates .env
 docker compose up -d identity-api                     # http://localhost:5001
 ```
 
 The identity service registers the web page as the `ledger-ui` client, with the redirect URIs
-`http://127.0.0.1:8080/`, `http://localhost:8080/` and `http://localhost:5173/`. Sign in with the admin account
-from its `.env`, or with any user created in its admin console. What a user may do depends on their role:
+`http://127.0.0.1:8080/`, `http://localhost:8080/` and `http://localhost:5173/`.
+
+**Demo login:** `admin@example.com` / `ledger-demo-admin` (an admin, so you see every account). To try the normal
+tier, sign in as the admin, open **+ New account**, and tick "Also create a sign-in account" to make an operator
+user. The demo password is public and only works on your own machine: the identity service listens on `127.0.0.1`
+only, and `./scripts/dev-secrets.sh --random-admin` gives a private password instead.
+
+You can also sign in with any user created in the identity service's admin console. What a user may do depends on their role:
 `operator` users manage their own accounts and send money, `auditor` users can only read, and `admin` users can act
 on every account. **Use an API key instead** still works for scripts and for running without the identity service.
 
