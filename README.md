@@ -34,6 +34,18 @@ What it does:
   dependency scanning, and a job that has an LLM write tests and then uses mutation testing to check whether those
   tests catch anything.
 
+## Requirements
+
+| To... | You need |
+| --- | --- |
+| Run the ledger and its web page | [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows, macOS or Linux) running, [Git](https://git-scm.com/), a web browser, and ports 8080 and 5432 free |
+| Sign in with the demo login (optional) | The [identity service](https://github.com/debsamanta5571-dot/identity-service) cloned next to this repository, a Bash shell with `openssl` (built in on macOS and Linux; on Windows use Git Bash, which comes with Git), and port 5001 free |
+| Build and run the tests | JDK 21, Maven 3.9+, Node 22, and Docker (the integration tests start PostgreSQL with Testcontainers) |
+| Build `Ledger.exe` (optional) | Windows 10 or 11, plus everything in the row above. The finished exe still needs Docker for its database. |
+
+Everything else (PostgreSQL, the Java runtime inside the container, the web page's build tools) comes with the Docker
+images, so you do not need to install it.
+
 ## Data model
 
 | Table | Purpose |
@@ -50,8 +62,7 @@ JSON. There is no floating point anywhere in the money path.
 
 ## Running it
 
-**Prerequisites:** JDK 21, Maven 3.9+, Docker (for Testcontainers and the compose stack), and Node 22 (for the web
-page only).
+See [Requirements](#requirements) for what to install first.
 
 ### With Docker Compose (service + Postgres)
 
